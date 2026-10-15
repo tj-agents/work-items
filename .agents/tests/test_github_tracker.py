@@ -1,4 +1,5 @@
 import copy
+import argparse
 import json
 from pathlib import Path
 import subprocess
@@ -146,6 +147,24 @@ class TrackerTests(unittest.TestCase):
         with self.assertRaises(records.ItemError):
             self.tracker.comment(1, " ", "comment-0001")
 
+    def test_close_records_verification_before_closing_and_is_repeatable(self):
+        self.tracker.create(item(), "request-0001")
+        with tempfile.TemporaryDirectory() as directory:
+            text = Path(directory) / "verification.txt"
+            text.write_text("Observed tests passed", encoding="utf-8")
+            args = argparse.Namespace(command="close", root=directory, item="owner/project#1",
+                                      request_id="close-0001", text_file=str(text))
+            with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value=CONFIG):
+                result = github.execute(args)
+                self.assertEqual("closed", result["state"])
+                self.assertIn("Observed tests passed", self.api.comments[0]["body"])
+                repeated = github.execute(args)
+                self.assertTrue(repeated["already_closed"])
+                self.assertEqual(1, len(self.api.comments))
+            writes = [(method, endpoint) for method, endpoint, _ in self.api.calls if method in ("POST", "PATCH")]
+            self.assertTrue(writes[-2][1].endswith("/comments"))
+            self.assertEqual("PATCH", writes[-1][0])
+
     def test_issue_identity_never_crosses_selected_repository(self):
         for value in ("owner/project#1", "https://github.com/owner/project/issues/1"):
             self.assertEqual(1, github.issue_number(value, "owner/project"))
@@ -168,6 +187,21 @@ class SelectionTests(unittest.TestCase):
             path.write_text(json.dumps({**CONFIG, "backend": "azure-devops"}), encoding="utf-8")
             with self.assertRaisesRegex(records.ItemError, "explicitly selected GitHub"):
                 github.selection(root)
+
+    def test_adoption_writes_only_an_explicit_source_selection(self):
+        api = FakeAPI()
+        api.request = unittest.mock.Mock(side_effect=[
+            {"full_name": "owner/project", "has_issues": True, "archived": False},
+            [{"name": name} for name in ("Feature", "Task", "Bug")]])
+        with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
+            result = github.adopt(directory, "owner/project", api)
+            self.assertFalse(result["github_writes"])
+            config = github.selection(directory)
+            self.assertEqual("Feature", config["issue_types"]["feature"])
+            self.assertEqual("Bug", config["issue_types"]["bug"])
+            self.assertTrue(all(call.args[0] == "GET" for call in api.request.call_args_list))
+            with self.assertRaisesRegex(records.ItemError, "must match"):
+                github.adopt(directory, "other/project", api)
 
     def test_gh_transport_uses_argument_arrays_and_flattens_all_pages(self):
         response = subprocess.CompletedProcess([], 0, stdout='[[{"number":1}],[{"number":2}]]', stderr="")
