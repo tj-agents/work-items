@@ -16,7 +16,9 @@
         "repositories explicitly adopting GitHub work items"
       ],
       "requires": [
-        "python"
+        "python",
+        "git",
+        "gh"
       ],
       "provenance": [
         "house"
