@@ -1,0 +1,18 @@
+{
+  "name": "work-items-agents",
+  "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+  "owner": {
+    "name": "Tommy Seery"
+  },
+  "plugins": [
+    {
+      "name": "work-items",
+      "source": "./plugins/work-items",
+      "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+      "category": "Productivity",
+      "keywords": [
+        "work-items"
+      ]
+    }
+  ]
+}

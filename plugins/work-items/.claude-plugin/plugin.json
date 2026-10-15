@@ -1,0 +1,13 @@
+{
+  "name": "work-items",
+  "displayName": "Work items",
+  "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+  "author": {
+    "name": "Tommy Seery"
+  },
+  "repository": "https://github.com/tj-agents/work-items",
+  "skills": "./skills/",
+  "keywords": [
+    "work-items"
+  ]
+}

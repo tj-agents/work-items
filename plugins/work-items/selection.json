@@ -1,0 +1,26 @@
+{
+  "plugin": "work-items",
+  "dependencies": [],
+  "profiles": {
+    "core": [
+      "manage"
+    ]
+  },
+  "compatibilitySkillAliases": {},
+  "skills": [
+    {
+      "name": "manage",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "Work items"
+      ],
+      "requires": [
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    }
+  ]
+}
