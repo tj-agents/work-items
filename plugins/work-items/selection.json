@@ -13,10 +13,10 @@
       "kind": "utility",
       "profile": "core",
       "applicability": [
-        "Work items"
+        "repositories explicitly adopting GitHub work items"
       ],
       "requires": [
-        "work-items"
+        "python"
       ],
       "provenance": [
         "house"
