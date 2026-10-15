@@ -1,0 +1,22 @@
+{
+  "name": "work-items",
+  "version": "0.1.0",
+  "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+  "author": {
+    "name": "Tommy Seery"
+  },
+  "repository": "https://github.com/tj-agents/work-items",
+  "skills": "./skills/",
+  "keywords": [
+    "work-items"
+  ],
+  "interface": {
+    "displayName": "Work items",
+    "shortDescription": "Optional GitHub work-item templates and deterministic tracking tools.",
+    "longDescription": "Optional GitHub work-item templates and deterministic tracking tools.",
+    "developerName": "Tommy Seery",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Show me what work-items can do."
+  }
+}

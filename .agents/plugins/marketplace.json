@@ -1,0 +1,20 @@
+{
+  "name": "work-items-agents",
+  "interface": {
+    "displayName": "Work items"
+  },
+  "plugins": [
+    {
+      "name": "work-items",
+      "source": {
+        "source": "local",
+        "path": "./plugins/work-items"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
