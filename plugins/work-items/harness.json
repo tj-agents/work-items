@@ -1,6 +1,72 @@
 {
   "schema_version": 1,
   "plugin": "work-items-agents/work-items",
-  "source_roots": [".agents/work-items"],
-  "requires": {"marketplaces": [{"id": "work-items-agents", "repository": "tj-agents/work-items"}, {"id": "base-agents", "repository": "tj-agents/core"}], "plugins": ["work-items-agents/work-items", "base-agents/base"], "hooks": [], "permissions": {"claude_allow": [], "codex_prefix_rules": []}}
+  "source_roots": [
+    ".agents/work-items"
+  ],
+  "requires": {
+    "marketplaces": [
+      {
+        "id": "work-items-agents",
+        "repository": "tj-agents/work-items"
+      },
+      {
+        "id": "base-agents",
+        "repository": "tj-agents/core"
+      }
+    ],
+    "plugins": [
+      "work-items-agents/work-items",
+      "base-agents/base"
+    ],
+    "hooks": [],
+    "permissions": {
+      "claude_allow": [
+        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)"
+      ],
+      "codex_prefix_rules": [
+        {
+          "pattern": [
+            [
+              "python",
+              "python.exe",
+              "python3",
+              "py"
+            ],
+            "-B",
+            [
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py",
+              "${PLUGIN_ROOT}/skills/manage/scripts/work_item.py"
+            ]
+          ],
+          "justification": "The explicitly adopted tracker script validates source origin and work-item facts before GitHub issue operations; preview and schemas remain local.",
+          "match": [
+            [
+              "python",
+              "-B",
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py"
+            ],
+            [
+              "python",
+              "-B",
+              "${PLUGIN_ROOT}/skills/manage/scripts/work_item.py"
+            ]
+          ],
+          "not_match": [
+            [
+              "python",
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py"
+            ]
+          ]
+        }
+      ]
+    }
+  }
 }
