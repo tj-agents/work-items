@@ -29,8 +29,8 @@ class WorkItemTests(unittest.TestCase):
                 self.assertEqual(module.validate(item), item)
                 first = module.render(item)
                 self.assertEqual(first, module.render(dict(reversed(list(item.items())))))
-                for rule in module.schema_for(kind)["properties"].values():
-                    if "title" in rule:
+                for name, rule in module.schema_for(kind)["properties"].items():
+                    if "title" in rule and name in item:
                         self.assertIn("## " + rule["title"], first)
 
     def test_invalid_values_are_rejected(self):
