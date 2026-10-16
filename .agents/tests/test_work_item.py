@@ -8,6 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / ".agents/work-items/utility/manage/scripts/work_item.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("work_item", SCRIPT)
 module = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(module)
