@@ -145,10 +145,11 @@ def body_for(item, request, existing=None):
 
 
 class Tracker:
-    def __init__(self, config, api=None):
+    def __init__(self, config, api=None, journal=None):
         self.config = config
         self.repo = config["repository"]
         self.api = api or GitHub()
+        self.journal = journal
         self.endpoint = "repos/" + self.repo + "/issues"
 
     def all(self):
@@ -186,12 +187,24 @@ class Tracker:
             raise ItemError("request-id has multiple issues; reconcile their ownership before continuing")
         return found[0] if found else None
 
-    def create(self, item, request):
+    def create(self, item, request, reconcile_only=False):
         request_id(request)
         body = body_for(item, request)
+        key = self.repo + ":create:" + request
+        fingerprint = digest(json_text(item))
+        receipt = self.journal.read(key, fingerprint) if self.journal else None
         existing = self.find_request(request, item)
+        if existing is None and receipt and receipt["resource_id"]:
+            existing = self.get(receipt["resource_id"])
+            info, _ = metadata(existing["body"])
+            if info["request_id"] != request or info["creation_hash"] != fingerprint:
+                raise ItemError("returned issue no longer matches its request receipt")
         if existing:
+            if self.journal:
+                self.journal.complete(key, fingerprint, existing["number"])
             return {**self.compact(existing), "reconciled": True}
+        if receipt or reconcile_only:
+            raise ItemError("request outcome remains uncertain; reconcile without another POST")
         payload = {"title": item["title"], "body": body}
         issue_type = self.config["issue_types"].get(item["kind"])
         if issue_type:
@@ -199,12 +212,18 @@ class Tracker:
             if issue_type not in [entry["name"] for entry in available]:
                 raise ItemError("configured issue type is unavailable; reconcile repository selection")
             payload["type"] = issue_type
+        if self.journal:
+            self.journal.reserve(key, fingerprint)
         try:
             issue = self.api.request("POST", self.endpoint, payload)
             result = self.compact(issue)
+            if self.journal:
+                self.journal.complete(key, fingerprint, issue["number"])
         except (APIError, ItemError, KeyError, TypeError):
             existing = self.find_request(request, item)
             if existing:
+                if self.journal:
+                    self.journal.complete(key, fingerprint, existing["number"])
                 return {**self.compact(existing), "reconciled": True}
             raise ItemError("create outcome uncertain or rejected; retain request-id and reconcile before retrying")
         return {**result, "reconciled": False}
@@ -231,6 +250,9 @@ class Tracker:
         if len(body) > 65536:
             raise ItemError("comment exceeds 65536 characters")
         endpoint = self.endpoint + f"/{number}/comments"
+        key = self.repo + f":comment:{number}:" + request
+        fingerprint = digest(json_text(info))
+        receipt = self.journal.read(key, fingerprint) if self.journal else None
         def reconcile():
             found = []
             for comment in self.api.request("GET", endpoint + "?per_page=100", paginate=True):
@@ -247,12 +269,26 @@ class Tracker:
                     found.append(comment)
             if len(found) > 1:
                 raise ItemError("comment request-id has duplicates; reconcile before continuing")
+            if not found and receipt and receipt["resource_id"]:
+                comment = self.api.request("GET", "repos/" + self.repo + "/issues/comments/" + str(receipt["resource_id"]))
+                if comment.get("body") != body:
+                    raise ItemError("comment changed since its request receipt")
+                found.append(comment)
             return found[0] if found else None
         existing = reconcile()
         if existing:
+            if self.journal:
+                self.journal.complete(key, fingerprint, existing["id"])
             return existing
+        if receipt:
+            raise ItemError("comment outcome remains uncertain; reconcile without another POST")
+        if self.journal:
+            self.journal.reserve(key, fingerprint)
         try:
-            return self.api.request("POST", endpoint, {"body": body})
+            comment = self.api.request("POST", endpoint, {"body": body})
+            if self.journal:
+                self.journal.complete(key, fingerprint, comment["id"])
+            return comment
         except APIError:
             existing = reconcile()
             if existing:
@@ -299,6 +335,8 @@ def add_commands(commands):
             command.add_argument("--item", required=True)
         if name in ("create", "note", "link", "close"):
             command.add_argument("--request-id", required=True)
+        if name == "create":
+            command.add_argument("--reconcile-only", action="store_true")
         if name == "update":
             command.add_argument("--expected-hash", required=True)
         if name == "list":
@@ -317,9 +355,10 @@ def execute(args):
     api = GitHub()
     if args.command == "adopt":
         return adopt(args.root, args.repository, api)
-    tracker = Tracker(selection(args.root), api)
+    from request_journal import RequestJournal
+    tracker = Tracker(selection(args.root), api, RequestJournal(args.root))
     if args.command == "create":
-        return tracker.create(read_input(args.input), args.request_id)
+        return tracker.create(read_input(args.input), args.request_id, args.reconcile_only)
     if args.command == "list":
         result = []
         for issue in tracker.all():

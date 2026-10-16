@@ -60,3 +60,17 @@ verified close and explicit adoption are implemented. Seventeen cumulative unit/
 The transport uses current GitHub REST issue and repository issue-type endpoints (API 2026-03-10).
 Concurrency limitations are explicit; no distributed lock or exactly-once create is claimed.
 Next: independent review and controlled live pilot in tj-agents/work-items, then Core integration.
+
+## Live pilot repair checkpoint (16 October 2026)
+
+Initial pilot created Feature issues #1 and #2 for the same persisted request ID. Root source B001
+preserves the evidence; the cause of the immediate missing list entry was not captured. Do not claim
+retry acceptance from the earlier mocked tests. Durable request receipts now reserve before POST and
+retain returned identities in the shared local Git metadata. Pending intent never authorizes another
+POST; on another machine or after receipt loss, create --reconcile-only refuses submission when the
+remote marker cannot be found. Comments use the same receipt protection. Cross-machine concurrent
+creates remain explicitly outside any exactly-once claim. Twenty-three tests pass, including stale-list
+and uncertain-response regression cases; 49 generated files are current. Independent repair review and
+repeat live pilot are next. The foundation is PR #3 at 8ec0b6a; GitHub blocked jobs before startup due to
+account billing/spending limits. User choice between public generic tooling and restoring private CI is
+pending; no CI retry, green remote result or installed-host acceptance is claimed.

@@ -14,6 +14,7 @@ SCRIPTS = ROOT / ".agents/work-items/utility/manage/scripts"
 sys.path.insert(0, str(SCRIPTS))
 import github_tracker as github
 import records
+from request_journal import RequestJournal
 
 
 CONFIG = {"schema_version": 1, "backend": "github", "repository": "owner/project", "issue_types": {}}
@@ -40,10 +41,12 @@ class FakeAPI:
             return copy.deepcopy(self.issues)
         if method == "GET" and endpoint == "repos/owner/project/issue-types":
             return [{"name": name} for name in ("Task", "Feature", "Bug")]
+        if endpoint == "repos/owner/project/issues/comments/1":
+            return copy.deepcopy(self.comments[0])
         if endpoint.startswith(base + "/1/comments"):
             if method == "GET":
                 return copy.deepcopy(self.comments)
-            value = {"body": payload["body"], "html_url": "https://github.com/owner/project/issues/1#issuecomment-1"}
+            value = {"id": len(self.comments) + 1, "body": payload["body"], "html_url": "https://github.com/owner/project/issues/1#issuecomment-1"}
             self.comments.append(value)
             if self.fail_after_comment:
                 raise github.APIError("lost response")
@@ -154,7 +157,7 @@ class TrackerTests(unittest.TestCase):
             text.write_text("Observed tests passed", encoding="utf-8")
             args = argparse.Namespace(command="close", root=directory, item="owner/project#1",
                                       request_id="close-0001", text_file=str(text))
-            with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value=CONFIG):
+            with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value=CONFIG), patch("request_journal.RequestJournal", return_value=None):
                 result = github.execute(args)
                 self.assertEqual("closed", result["state"])
                 self.assertIn("Observed tests passed", self.api.comments[0]["body"])
@@ -171,6 +174,67 @@ class TrackerTests(unittest.TestCase):
         for value in ("1", "other/project#1", "owner/project#0", "owner/project#١", "https://github.com/owner/project/pull/1"):
             with self.assertRaises(records.ItemError):
                 github.issue_number(value, "owner/project")
+
+
+class JournalTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="work-item receipts ")
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)
+        self.api = FakeAPI()
+        self.journal = RequestJournal(self.root)
+        self.tracker = github.Tracker(CONFIG, self.api, self.journal)
+
+    def stale_lists(self):
+        original = self.api.request
+        def request(method, endpoint, payload=None, paginate=False):
+            if method == "GET" and endpoint == "repos/owner/project/issues?state=all&per_page=100":
+                return []
+            if method == "GET" and endpoint.endswith("/comments?per_page=100"):
+                return []
+            return original(method, endpoint, payload, paginate)
+        self.api.request = request
+
+    def test_repeat_uses_returned_identity_even_when_list_omits_new_issue(self):
+        created = self.tracker.create(item(), "request-0001")
+        self.stale_lists()
+        reopened = github.Tracker(CONFIG, self.api, RequestJournal(self.root))
+        repeated = reopened.create(item(), "request-0001")
+        self.assertEqual(created["identity"], repeated["identity"])
+        self.assertTrue(repeated["reconciled"])
+        self.assertEqual(1, len(self.api.issues))
+        with self.assertRaisesRegex(records.ItemError, "differs"):
+            reopened.create({**item(), "title": "Different"}, "request-0001")
+
+    def test_uncertain_post_and_stale_list_never_repost_on_retry(self):
+        self.stale_lists()
+        self.api.fail_after_create = True
+        for _ in range(2):
+            with self.assertRaisesRegex(records.ItemError, "uncertain"):
+                self.tracker.create(item(), "request-0001")
+        self.assertEqual(1, len(self.api.issues))
+        with self.assertRaisesRegex(records.ItemError, "uncertain"):
+            self.tracker.create(item(), "cross-machine-request", reconcile_only=True)
+        self.assertEqual(1, len(self.api.issues))
+
+    def test_comment_receipts_reconcile_by_identity_when_list_is_stale(self):
+        self.tracker.create(item(), "request-0001")
+        first = self.tracker.comment(1, "Verified", "comment-0001")
+        self.stale_lists()
+        self.assertEqual(first, self.tracker.comment(1, "Verified", "comment-0001"))
+        self.assertEqual(1, len(self.api.comments))
+        self.api.comments[0]["body"] = "Manual edit"
+        with self.assertRaisesRegex(records.ItemError, "changed"):
+            self.tracker.comment(1, "Verified", "comment-0001")
+
+    def test_reserved_and_corrupt_receipts_fail_closed(self):
+        self.journal.reserve("request", "fingerprint")
+        with self.assertRaisesRegex(records.ItemError, "already reserved"):
+            self.journal.reserve("request", "fingerprint")
+        self.journal.path("request").write_text("invalid", encoding="utf-8")
+        with self.assertRaisesRegex(records.ItemError, "unreadable"):
+            self.journal.read("request", "fingerprint")
 
 
 class SelectionTests(unittest.TestCase):
