@@ -3,13 +3,12 @@
   "marketplaces": {
     "tj-agents": {
       "repository": "tj-agents/marketplace",
-      "revision": "4962303949fd60d66682c0012644e6a684e200d7"
+      "revision": "a807aa3d3b5e791e318c3c8b44d3eb56eaa308dd"
     }
   },
   "plugins": [
     "base@tj-agents",
     "engineering@tj-agents",
-    "kit@tj-agents",
     "machine@tj-agents",
     "template@tj-agents"
   ]
