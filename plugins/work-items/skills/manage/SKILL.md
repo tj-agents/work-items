@@ -5,7 +5,7 @@ kind: utility
 domain: work-items
 profile: core
 applicability: repositories explicitly adopting GitHub work items
-requires: python, git, gh
+requires: python>=3.9, git, gh
 provenance: house
 ---
 

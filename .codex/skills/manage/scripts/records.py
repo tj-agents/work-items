@@ -4,6 +4,10 @@ from pathlib import Path
 import sys
 
 
+if sys.version_info < (3, 9):
+    raise SystemExit("Work-item tools require Python 3.9 or later")
+
+
 TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
 KINDS = ("feature", "task", "bug", "mistake", "debt")
 
@@ -36,6 +40,9 @@ def check_value(value, spec, path):
             raise ItemError(f"{path} must be an array")
         for index, item in enumerate(value):
             check_value(item, spec["items"], f"{path}[{index}]")
+    elif expected == "object":
+        if not isinstance(value, dict) or not value:
+            raise ItemError(f"{path} must be a nonempty object")
     else:
         raise ItemError(f"unsupported contract type: {expected}")
 
@@ -67,7 +74,7 @@ def render(item):
     spec = schema_for(item["kind"])
     lines = [item["summary"].strip()]
     for name, rule in spec["properties"].items():
-        if "title" in rule:
+        if "title" in rule and name in item:
             lines.extend(["", "## " + rule["title"], "", item[name].strip()])
     metadata = [f"Kind: {item['kind']}"]
     for name in ("priority", "owner"):
@@ -77,6 +84,8 @@ def render(item):
     for name, heading in (("links", "Links"), ("legacy_ids", "Legacy identities")):
         if item.get(name):
             lines.extend(["", "## " + heading, "", *["- " + value for value in item[name]]])
+    if "handoff_disposition" in item:
+        lines.extend(["", "```agent-handoff-disposition", json.dumps(item["handoff_disposition"], ensure_ascii=False, sort_keys=True, indent=2), "```"])
     return "\n".join(lines) + "\n"
 
 
