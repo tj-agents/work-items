@@ -224,6 +224,9 @@ class JournalTests(unittest.TestCase):
         self.stale_lists()
         self.assertEqual(first, self.tracker.comment(1, "Verified", "comment-0001"))
         self.assertEqual(1, len(self.api.comments))
+        with self.assertRaisesRegex(records.ItemError, "uncertain"):
+            self.tracker.comment(1, "Uncertain on another computer", "comment-0002", reconcile_only=True)
+        self.assertEqual(1, len(self.api.comments))
         self.api.comments[0]["body"] = "Manual edit"
         with self.assertRaisesRegex(records.ItemError, "changed"):
             self.tracker.comment(1, "Verified", "comment-0001")
