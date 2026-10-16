@@ -31,6 +31,9 @@ def json_text(value):
 
 
 class GitHub:
+    def __init__(self, timeout=60):
+        self.timeout = timeout
+
     def request(self, method, endpoint, payload=None, paginate=False):
         command = ["gh", "api", "--hostname", "github.com", "--method", method,
                    "-H", "Accept: application/vnd.github+json", "-H", "X-GitHub-Api-Version: 2026-03-10", endpoint]
@@ -42,7 +45,7 @@ class GitHub:
         env.pop("GH_DEBUG", None)
         try:
             result = subprocess.run(command, input=json_text(payload) if payload is not None else None,
-                                    capture_output=True, text=True, encoding="utf-8", timeout=60,
+                                    capture_output=True, text=True, encoding="utf-8", timeout=self.timeout,
                                     env=env, check=False)
         except (OSError, subprocess.TimeoutExpired) as error:
             raise APIError("GitHub transport unavailable; a write outcome may be uncertain") from error
@@ -78,7 +81,7 @@ def source_repository(root):
     return repo
 
 
-def selection(root):
+def selection(root, require_provider=True):
     path = Path(root).resolve() / CONFIG
     if path.is_symlink():
         raise ItemError("tracker configuration must be a regular repository file")
@@ -96,6 +99,14 @@ def selection(root):
     types = config["issue_types"]
     if not isinstance(types, dict) or set(types) - set(KINDS) or any(not isinstance(v, str) or not v.strip() for v in types.values()):
         raise ItemError("invalid issue type mapping")
+    if require_provider:
+        provider_path = Path(root).resolve() / ".problem-records.json"
+        try:
+            provider = json.loads(provider_path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError) as error:
+            raise ItemError("explicit Core provider selection is required; finish adopt before tracker operations") from error
+        if provider_path.is_symlink() or not isinstance(provider, dict) or set(provider) != {"schema_version", "provider"} or type(provider["schema_version"]) is not int or provider != {"schema_version": 1, "provider": "work-items:manage"}:
+            raise ItemError("Core problem-record provider differs; reconcile before tracker operations")
     return config
 
 
@@ -122,12 +133,12 @@ def metadata(body):
         raise ItemError("issue is not managed by work-items")
     try:
         value = json.loads(match.group(1))
-        if not isinstance(value, dict) or set(value) != {"request_id", "kind", "creation_hash", "render_hash"}:
+        if not isinstance(value, dict) or set(value) not in ({"request_id", "kind", "creation_hash", "render_hash"}, {"request_id", "kind", "creation_hash", "render_hash", "kind_hash"}):
             raise ValueError("metadata shape")
         if value["kind"] not in KINDS or not isinstance(value["request_id"], str):
             raise ValueError("metadata kind/request")
         request_id(value["request_id"])
-        if any(not isinstance(value[k], str) or not re.fullmatch(r"[a-f0-9]{64}", value[k]) for k in ("creation_hash", "render_hash")):
+        if any(not isinstance(value[k], str) or not re.fullmatch(r"[a-f0-9]{64}", value[k]) for k in ("creation_hash", "render_hash", *(["kind_hash"] if "kind_hash" in value else []))):
             raise ValueError("metadata digest")
         return value, body[:match.start()]
     except (ValueError, TypeError) as error:
@@ -137,7 +148,8 @@ def metadata(body):
 def body_for(item, request, existing=None):
     text = render(item).rstrip("\n")
     info = {"request_id": request, "kind": item["kind"],
-            "creation_hash": existing["creation_hash"] if existing else digest(json_text(item)), "render_hash": digest(text)}
+            "creation_hash": existing["creation_hash"] if existing else digest(json_text(item)), "render_hash": digest(text),
+            "kind_hash": digest(item["kind"] + "\n" + text)}
     body = text + "\n<!-- work-item:v1 " + json_text(info) + " -->\n"
     if len(body) > 65536:
         raise ItemError("rendered issue body exceeds 65536 characters")
@@ -299,6 +311,30 @@ class Tracker:
 
 
 def adopt(root, repository, api):
+    check_provider(Path(root).resolve())
+    from request_journal import adoption_lock
+    with adoption_lock(root):
+        return adopt_locked(root, repository, api)
+
+
+def check_provider(root):
+    provider_path = root / ".problem-records.json"
+    provider = {"schema_version": 1, "provider": "work-items:manage"}
+    if provider_path.is_symlink():
+        raise ItemError("problem-record provider selection must be a regular repository file")
+    if provider_path.exists():
+        try:
+            existing_provider = json.loads(provider_path.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError) as error:
+            raise ItemError("existing problem-record provider is unreadable; reconcile before adoption") from error
+        if not isinstance(existing_provider, dict) or type(existing_provider.get("schema_version")) is not int or existing_provider != provider:
+            raise ItemError("another problem-record provider is selected; reconcile before adoption")
+    return provider_path, provider
+
+
+def adopt_locked(root, repository, api):
+    root = Path(root).resolve()
+    provider_path, provider = check_provider(root)
     if not REPOSITORY.fullmatch(repository) or source_repository(root).casefold() != repository.casefold():
         raise ItemError("adoption repository must match the source origin")
     repo = api.request("GET", "repos/" + repository)
@@ -315,13 +351,24 @@ def adopt(root, repository, api):
     config = {"schema_version": 1, "backend": "github", "repository": repo["full_name"], "issue_types": mapping}
     path = Path(root).resolve() / CONFIG
     if path.exists():
-        existing = selection(root)
+        existing = selection(root, require_provider=False)
         if existing != config:
             raise ItemError("existing tracker selection differs; reconcile it explicitly before adoption")
-    else:
-        with path.open("x", encoding="utf-8", newline="\n") as handle:
-            handle.write(json.dumps(config, indent=2) + "\n")
-    return {"selected": config, "type_support": "native" if mapping else "body-kind", "github_writes": False}
+    created = []
+    provider_existed = provider_path.exists()
+    tracker_existed = path.exists()
+    try:
+        for target, value, existed in ((path, config, tracker_existed), (provider_path, provider, provider_existed)):
+            if not existed:
+                with target.open("x", encoding="utf-8", newline="\n") as handle:
+                    created.append(target)
+                    handle.write(json.dumps(value, indent=2) + "\n")
+        selection(root)
+    except (OSError, ItemError):
+        for target in reversed(created):
+            target.unlink()
+        raise
+    return {"selected": config, "problem_provider": provider, "type_support": "native" if mapping else "body-kind", "github_writes": False}
 
 
 def add_commands(commands):

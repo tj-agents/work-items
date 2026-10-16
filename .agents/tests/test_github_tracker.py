@@ -261,6 +261,7 @@ class SelectionTests(unittest.TestCase):
             {"full_name": "owner/project", "has_issues": True, "archived": False},
             [{"name": name} for name in ("Feature", "Task", "Bug")]])
         with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
+            subprocess.run(["git", "init", "-q", directory], check=True)
             result = github.adopt(directory, "owner/project", api)
             self.assertFalse(result["github_writes"])
             config = github.selection(directory)

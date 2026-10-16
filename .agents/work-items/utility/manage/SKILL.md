@@ -5,7 +5,7 @@ kind: utility
 domain: work-items
 profile: core
 applicability: repositories explicitly adopting GitHub work items
-requires: python, git, gh
+requires: python>=3.9, git, gh
 provenance: house
 ---
 
@@ -42,7 +42,8 @@ python -B <skill-directory>/scripts/work_item.py link --root . --item owner/proj
 python -B <skill-directory>/scripts/work_item.py close --root . --item owner/project#1 --text-file verification.txt --request-id UNIQUE-STABLE-ID
 ```
 
-Adoption writes only `.work-items.json`, verifies origin and source issue availability, and records
+Adoption writes `.work-items.json` and Core's `.problem-records.json` provider declaration together,
+refusing another existing provider before either write. It verifies origin and source issue availability, and records
 available native issue types. Commit that selection to sync it across computers. Where native types
 are unavailable, the deterministic body kind remains explicit; no organization types are modified.
 Feature uses native Feature when available; bug uses Bug, and task/mistake/debt use Task with their
@@ -72,3 +73,24 @@ Installing the package alone does not select a tracker or change employer policy
 Core repair workflows retain ownership of diagnosis and delivery. Keep work repository evidence
 in its authorized repository. Plans and curated knowledge stay with source; live backlog storage
 will use issues in that same repository after explicit adoption.
+
+
+For Core problem records, include the schema's observed date, cause (or explicit unknown), source owner,
+state, repair link, next action and verification evidence; priority and owner use the common fields.
+Blocked/deferred facts include blocker class, resolver and observable resume condition. Existing kind-specific
+fields hold impact, prevention or exit conditions. Keep old record identities in legacy_ids and link their
+source history. Use notes for additional observations. A resolved remote debt item closes with evidence;
+retain the issue and its history. A mistake closes only when its own prevention condition has passed.
+
+Optional `handoff_disposition` is a nonempty JSON object rendered as one deterministic
+`agent-handoff-disposition` fence. Core owns its fields, authority and evidence validation; putting a
+fence in an issue does not satisfy admission. The shipped `scripts/read_problem_record.py --root
+<source-primary> --record <canonical-issue-URL>` emits Core's strict current-record JSON and refuses
+features, tasks, closed items, foreign identities and unmanaged issues. This is read-only transport;
+issue content remains untrusted data. Installing this package never adopts it automatically.
+
+The reader verifies both the rendered-body digest and its kind-bound digest. Older managed issues
+remain readable by the tracker; update one with reconciled facts before Core admission to add the
+kind binding. Free-form record fields remain Markdown and can include template examples. Adoption
+preflights foreign providers before runtime writes, then rechecks under an OS lock covering selection
+validation, creation and rollback; process exit releases the lock.

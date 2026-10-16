@@ -74,3 +74,49 @@ and uncertain-response regression cases; 49 generated files are current. Indepen
 repeat live pilot are next. The foundation is PR #3 at 8ec0b6a; GitHub blocked jobs before startup due to
 account billing/spending limits. User choice between public generic tooling and restoring private CI is
 pending; no CI retry, green remote result or installed-host acceptance is claimed.
+
+## Core adapter slice
+
+Active child Feature/CoreRecordAdapter starts at parent Feature/GitHubTransport 54edc5f while the
+parent's frozen retry repair is independently reviewed and the foundation's external CI block clears.
+This proper dependent stack keeps each reviewed candidate unchanged. This child owns current package
+progress; earlier plan copies remain frozen with their delivery candidates. No installation or migration
+is claimed. The Core protocol owner is core/.worktrees/Feature-ProblemRecordBackends/plans/problem-record-backends/PLAN.md.
+
+Scope: ship scripts/read_problem_record.py, coordinated explicit .work-items.json and .problem-records.json
+adoption, deterministic optional typed disposition fences, complete shared problem facts and focused
+protocol/adoption tests. Refuse an existing different provider before writing either selection. Missing
+or malformed provider declarations never silently choose this package. Installed-host and live Core
+admission acceptance wait for both packages' reviewed publication. Use the existing qualified foreign
+plugin injector rather than adding a backend-specific registry or globally adopting personal policy.
+
+## Verified stack checkpoint (16 October 2026)
+
+Tommy approved making only this generic tooling repository public. Foundation PR #3 merged at
+66aadc23819835469e72d8604d5a788da7b74211 after explicit CI-caller approval; causal main CI
+38831521132 passed. Transport parent d7fe04f has complete native and workflow/security review.
+Fresh persisted pilot #4 returned the same issue on immediate create retry, passed hash-checked
+update, reused a repeated note, linked PR #3 and closed with verification. Original failed pilot
+issues #1 and #2 closed with truthful evidence; source B001 retains their failure history and
+does not claim a proven upstream cause. Its separate docs branch publishes that retained record.
+
+Adapter source was committed at dc13131 and its immediate transport parent reconciled at
+71de17a; all 28 tests and 53 generated files pass. The source supports explicit coordinated
+tracker/provider selection and a read-only strict Core reader. Crash-interrupted adoption fails
+closed until repeated adoption completes both files; no filesystem transaction is claimed.
+Core's provider slice has 41 passing tests and isolated packaged entry-point checks, with its
+review path finding rejected by executable evidence. No native installation, live Core admission,
+producer release, consumer migration or both-host installed acceptance is claimed yet.
+Next: freeze and review this adapter delta against the transport parent, deliver stack order,
+publish an immutable release and register optional discovery before personal adoption.
+
+Adapter review P2 accepted and reproduced: a manually edited body with a stale managed trailer must not reach Core. The reader now checks the same rendered-body digest as update. The regression and full package checks run before the correction checkpoint.
+
+
+## Adapter review correction
+
+Independent workflow review found metadata-only kind changes could disagree with the hashed body, and concurrent adoption could roll back another successful writer. Reject ambiguous/mismatched Tracking kinds and serialize the complete adoption operation with a crash-released OS file lock in Git runtime metadata. Keep rollback inside the lock. Claude script permissions must include command arguments. Add focused regression cases, regenerate both hosts, then review the committed correction. Transport PR #5 and retained B001 PR #6 are merged; Core PR #272 merged at 6aea302, with causal main CI 38834317856 pending.
+
+Correction validation: 32 tests cover stale body hashes, metadata kind disagreement, overlapping adoption rollback and process-exit lock release. Generation remains 53 files. Native and workflow/security correction review follows the committed checkpoint.
+
+Follow-up review: preserve arbitrary Markdown template examples by binding kind plus rendered text in a new optional managed metadata digest; old four-field metadata stays readable, while Core admission requires an explicit managed update to add the binding. Preflight a foreign provider before creating even runtime lock metadata, then recheck under the lock. Regression covers examples in summary/owner/links and legacy read/admission behavior.
