@@ -79,6 +79,15 @@ class AdapterTests(unittest.TestCase):
                     with self.assertRaises(records.ItemError):
                         reader.read("source", identity)
 
+    def test_reader_rejects_manual_body_edits_with_stale_metadata(self):
+        reference = "https://github.com/owner/project/issues/1"
+        issue = {"number": 1, "html_url": reference, "state": "open", "title": "Observed problem",
+                 "body": "Unverified manual edit\n" + github.body_for(self.facts(), "adapter-request")}
+        api = Mock(request=Mock(return_value=issue))
+        with patch.object(reader, "selection", return_value=CONFIG), patch.object(reader, "GitHub", return_value=api):
+            with self.assertRaisesRegex(records.ItemError, "manually edited"):
+                reader.read("source", reference)
+
     def test_problem_facts_and_disposition_have_deterministic_rendering(self):
         facts = self.facts()
         facts.update(observed="2026-10-16", source_owner="source owner", cause="unknown", state="deferred",

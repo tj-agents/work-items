@@ -2,7 +2,7 @@ import argparse
 import json
 import sys
 
-from github_tracker import GitHub, Tracker, issue_number, selection
+from github_tracker import GitHub, Tracker, digest, issue_number, metadata, selection
 from records import ItemError
 
 
@@ -12,6 +12,9 @@ def read(root, reference):
     if reference != f"https://github.com/{tracker.repo}/issues/{number}":
         raise ItemError("problem records require the canonical GitHub issue URL")
     issue = tracker.get(number)
+    info, text = metadata(issue["body"])
+    if digest(text) != info["render_hash"]:
+        raise ItemError("problem record was manually edited; reconcile its managed body")
     compact = tracker.compact(issue)
     if compact["kind"] not in {"bug", "mistake", "debt"} or compact["state"] != "open":
         raise ItemError("admission requires an open problem record")

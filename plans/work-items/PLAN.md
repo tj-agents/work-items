@@ -109,3 +109,5 @@ review path finding rejected by executable evidence. No native installation, liv
 producer release, consumer migration or both-host installed acceptance is claimed yet.
 Next: freeze and review this adapter delta against the transport parent, deliver stack order,
 publish an immutable release and register optional discovery before personal adoption.
+
+Adapter review P2 accepted and reproduced: a manually edited body with a stale managed trailer must not reach Core. The reader now checks the same rendered-body digest as update. The regression and full package checks run before the correction checkpoint.
