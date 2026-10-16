@@ -133,12 +133,12 @@ def metadata(body):
         raise ItemError("issue is not managed by work-items")
     try:
         value = json.loads(match.group(1))
-        if not isinstance(value, dict) or set(value) != {"request_id", "kind", "creation_hash", "render_hash"}:
+        if not isinstance(value, dict) or set(value) not in ({"request_id", "kind", "creation_hash", "render_hash"}, {"request_id", "kind", "creation_hash", "render_hash", "kind_hash"}):
             raise ValueError("metadata shape")
         if value["kind"] not in KINDS or not isinstance(value["request_id"], str):
             raise ValueError("metadata kind/request")
         request_id(value["request_id"])
-        if any(not isinstance(value[k], str) or not re.fullmatch(r"[a-f0-9]{64}", value[k]) for k in ("creation_hash", "render_hash")):
+        if any(not isinstance(value[k], str) or not re.fullmatch(r"[a-f0-9]{64}", value[k]) for k in ("creation_hash", "render_hash", *(["kind_hash"] if "kind_hash" in value else []))):
             raise ValueError("metadata digest")
         return value, body[:match.start()]
     except (ValueError, TypeError) as error:
@@ -148,7 +148,8 @@ def metadata(body):
 def body_for(item, request, existing=None):
     text = render(item).rstrip("\n")
     info = {"request_id": request, "kind": item["kind"],
-            "creation_hash": existing["creation_hash"] if existing else digest(json_text(item)), "render_hash": digest(text)}
+            "creation_hash": existing["creation_hash"] if existing else digest(json_text(item)), "render_hash": digest(text),
+            "kind_hash": digest(item["kind"] + "\n" + text)}
     body = text + "\n<!-- work-item:v1 " + json_text(info) + " -->\n"
     if len(body) > 65536:
         raise ItemError("rendered issue body exceeds 65536 characters")
@@ -310,13 +311,13 @@ class Tracker:
 
 
 def adopt(root, repository, api):
+    check_provider(Path(root).resolve())
     from request_journal import adoption_lock
     with adoption_lock(root):
         return adopt_locked(root, repository, api)
 
 
-def adopt_locked(root, repository, api):
-    root = Path(root).resolve()
+def check_provider(root):
     provider_path = root / ".problem-records.json"
     provider = {"schema_version": 1, "provider": "work-items:manage"}
     if provider_path.is_symlink():
@@ -328,6 +329,12 @@ def adopt_locked(root, repository, api):
             raise ItemError("existing problem-record provider is unreadable; reconcile before adoption") from error
         if not isinstance(existing_provider, dict) or type(existing_provider.get("schema_version")) is not int or existing_provider != provider:
             raise ItemError("another problem-record provider is selected; reconcile before adoption")
+    return provider_path, provider
+
+
+def adopt_locked(root, repository, api):
+    root = Path(root).resolve()
+    provider_path, provider = check_provider(root)
     if not REPOSITORY.fullmatch(repository) or source_repository(root).casefold() != repository.casefold():
         raise ItemError("adoption repository must match the source origin")
     repo = api.request("GET", "repos/" + repository)

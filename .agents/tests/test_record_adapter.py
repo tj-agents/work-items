@@ -37,6 +37,7 @@ class AdapterTests(unittest.TestCase):
                 github.adopt(root, "owner/project", api)
             api.request.assert_not_called()
             self.assertFalse((root / github.CONFIG).exists())
+            self.assertFalse((root / ".git/work-items").exists())
 
     def test_both_selections_are_required_and_repeated_adoption_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
@@ -131,6 +132,31 @@ class AdapterTests(unittest.TestCase):
             subprocess.run([sys.executable, "-B", "-c", script], check=True, timeout=15)
             with adoption_lock(directory):
                 pass
+
+    def test_reader_preserves_arbitrary_tracking_examples_in_record_fields(self):
+        reference = "https://github.com/owner/project/issues/1"
+        facts = self.facts()
+        facts["summary"] += "\n\n## Tracking\n\nKind: debt"
+        facts["owner"] = "Owner\n\n## Tracking\n\nKind: mistake"
+        facts["links"] = ["Example\n\n## Tracking\n\nKind: feature"]
+        issue = {"number": 1, "html_url": reference, "state": "open", "title": facts["title"],
+                 "body": github.body_for(facts, "adapter-request")}
+        api = Mock(request=Mock(return_value=issue))
+        with patch.object(reader, "selection", return_value=CONFIG), patch.object(reader, "GitHub", return_value=api):
+            self.assertEqual("bug", reader.read("source", reference)["kind"])
+
+    def test_legacy_body_remains_readable_but_needs_update_before_admission(self):
+        reference = "https://github.com/owner/project/issues/1"
+        info, text = github.metadata(github.body_for(self.facts(), "adapter-request"))
+        info.pop("kind_hash")
+        issue = {"number": 1, "html_url": reference, "state": "open", "title": "Legacy problem",
+                 "body": text + "\n<!-- work-item:v1 " + github.json_text(info) + " -->\n"}
+        api = Mock(request=Mock(return_value=issue))
+        tracker = github.Tracker(CONFIG, api)
+        self.assertEqual("bug", tracker.compact(tracker.get(1))["kind"])
+        with patch.object(reader, "selection", return_value=CONFIG), patch.object(reader, "GitHub", return_value=api):
+            with self.assertRaisesRegex(records.ItemError, "update its managed body"):
+                reader.read("source", reference)
 
     def test_problem_facts_and_disposition_have_deterministic_rendering(self):
         facts = self.facts()
