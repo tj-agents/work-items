@@ -252,7 +252,7 @@ class Tracker:
         except APIError as error:
             raise ItemError("update outcome uncertain; read the issue before another update") from error
 
-    def comment(self, number, text, request, operation="note"):
+    def comment(self, number, text, request, operation="note", reconcile_only=False):
         request_id(request)
         if not isinstance(text, str) or not text.strip():
             raise ItemError("comment/verification text must be nonempty")
@@ -291,7 +291,7 @@ class Tracker:
             if self.journal:
                 self.journal.complete(key, fingerprint, existing["id"])
             return existing
-        if receipt:
+        if receipt or reconcile_only:
             raise ItemError("comment outcome remains uncertain; reconcile without another POST")
         if self.journal:
             self.journal.reserve(key, fingerprint)
@@ -303,6 +303,8 @@ class Tracker:
         except APIError:
             existing = reconcile()
             if existing:
+                if self.journal:
+                    self.journal.complete(key, fingerprint, existing["id"])
                 return existing
             raise ItemError("comment outcome uncertain or rejected; retain request-id and reconcile before retrying")
 
@@ -369,7 +371,7 @@ def add_commands(commands):
             command.add_argument("--item", required=True)
         if name in ("create", "note", "link", "close"):
             command.add_argument("--request-id", required=True)
-        if name == "create":
+        if name in ("create", "note", "link", "close"):
             command.add_argument("--reconcile-only", action="store_true")
         if name == "update":
             command.add_argument("--expected-hash", required=True)
@@ -419,7 +421,7 @@ def execute(args):
     text = "Linked work: " + args.target if args.command == "link" else Path(args.text_file).read_text(encoding="utf-8-sig")
     if args.command == "link" and not re.fullmatch(r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(issues|pull)/[1-9][0-9]*", args.target):
         raise ItemError("link target must be a GitHub issue or pull request URL")
-    comment = tracker.comment(number, text, args.request_id, args.command)
+    comment = tracker.comment(number, text, args.request_id, args.command, getattr(args, "reconcile_only", False))
     if args.command == "close":
         try:
             return tracker.compact(api.request("PATCH", tracker.endpoint + f"/{number}", {"state": "closed", "state_reason": "completed"}))

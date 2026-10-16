@@ -55,7 +55,7 @@ transport outcomes. The script reads all pages directly from GitHub and reconcil
 before another submission; it never retries a failed POST automatically. Submission intent and returned
 identities are retained in Git metadata shared by local worktrees. A pending receipt prevents another
 POST even when a list omits a new item. Keep these receipts after uncertain outcomes. On another computer
-or after receipt loss, use `create --reconcile-only` with the original request ID and facts; an absent
+or after receipt loss, use `--reconcile-only` with create/note/link/close and the original request ID and facts; an absent
 match stays uncertain and never grants permission to repost. Receipts are local retry protection; the
 canonical issue remains GitHub storage. Concurrent creates on separate computers can still race. Changed facts with the
 same request ID and duplicate records require reconciliation. This supports retries; concurrent
