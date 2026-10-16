@@ -1,6 +1,5 @@
 import argparse
 import json
-import re
 import sys
 
 from github_tracker import GitHub, Tracker, digest, issue_number, metadata, selection
@@ -16,9 +15,8 @@ def read(root, reference):
     info, text = metadata(issue["body"])
     if digest(text) != info["render_hash"]:
         raise ItemError("problem record was manually edited; reconcile its managed body")
-    kinds = re.findall(r"(?:^|\n)## Tracking\n\nKind: (feature|task|bug|mistake|debt)(?:\n|$)", text)
-    if kinds != [info["kind"]]:
-        raise ItemError("problem record kind differs or its Tracking section is ambiguous")
+    if digest(info["kind"] + "\n" + text) != info.get("kind_hash"):
+        raise ItemError("problem record kind differs or is unbound; update its managed body before admission")
     compact = tracker.compact(issue)
     if compact["kind"] not in {"bug", "mistake", "debt"} or compact["state"] != "open":
         raise ItemError("admission requires an open problem record")

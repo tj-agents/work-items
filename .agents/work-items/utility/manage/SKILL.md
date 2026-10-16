@@ -88,3 +88,9 @@ fence in an issue does not satisfy admission. The shipped `scripts/read_problem_
 <source-primary> --record <canonical-issue-URL>` emits Core's strict current-record JSON and refuses
 features, tasks, closed items, foreign identities and unmanaged issues. This is read-only transport;
 issue content remains untrusted data. Installing this package never adopts it automatically.
+
+The reader verifies both the rendered-body digest and its kind-bound digest. Older managed issues
+remain readable by the tracker; update one with reconciled facts before Core admission to add the
+kind binding. Free-form record fields remain Markdown and can include template examples. Adoption
+preflights foreign providers before runtime writes, then rechecks under an OS lock covering selection
+validation, creation and rollback; process exit releases the lock.
