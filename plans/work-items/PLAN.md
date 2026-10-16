@@ -89,3 +89,23 @@ protocol/adoption tests. Refuse an existing different provider before writing ei
 or malformed provider declarations never silently choose this package. Installed-host and live Core
 admission acceptance wait for both packages' reviewed publication. Use the existing qualified foreign
 plugin injector rather than adding a backend-specific registry or globally adopting personal policy.
+
+## Verified stack checkpoint (16 October 2026)
+
+Tommy approved making only this generic tooling repository public. Foundation PR #3 merged at
+66aadc23819835469e72d8604d5a788da7b74211 after explicit CI-caller approval; causal main CI
+38831521132 passed. Transport parent d7fe04f has complete native and workflow/security review.
+Fresh persisted pilot #4 returned the same issue on immediate create retry, passed hash-checked
+update, reused a repeated note, linked PR #3 and closed with verification. Original failed pilot
+issues #1 and #2 closed with truthful evidence; source B001 retains their failure history and
+does not claim a proven upstream cause. Its separate docs branch publishes that retained record.
+
+Adapter source was committed at dc13131 and its immediate transport parent reconciled at
+71de17a; all 28 tests and 53 generated files pass. The source supports explicit coordinated
+tracker/provider selection and a read-only strict Core reader. Crash-interrupted adoption fails
+closed until repeated adoption completes both files; no filesystem transaction is claimed.
+Core's provider slice has 41 passing tests and isolated packaged entry-point checks, with its
+review path finding rejected by executable evidence. No native installation, live Core admission,
+producer release, consumer migration or both-host installed acceptance is claimed yet.
+Next: freeze and review this adapter delta against the transport parent, deliver stack order,
+publish an immutable release and register optional discovery before personal adoption.
