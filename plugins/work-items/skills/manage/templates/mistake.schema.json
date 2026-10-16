@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "mistake work item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "title",
+    "summary",
+    "evidence",
+    "cause",
+    "governing_rule",
+    "prevention",
+    "verification"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "mistake",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "legacy_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "string",
+      "title": "Observed mistake",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "cause": {
+      "type": "string",
+      "title": "Cause or explicitly unknown",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "governing_rule": {
+      "type": "string",
+      "title": "Governing rule",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "prevention": {
+      "type": "string",
+      "title": "Prevention",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "verification": {
+      "type": "string",
+      "title": "Verification required",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    }
+  }
+}

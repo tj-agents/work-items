@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "debt work item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "title",
+    "summary",
+    "compromise",
+    "deferred_reason",
+    "impact",
+    "exit_condition"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "debt",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "legacy_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "compromise": {
+      "type": "string",
+      "title": "Current compromise",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "deferred_reason": {
+      "type": "string",
+      "title": "Reason deferred",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "impact": {
+      "type": "string",
+      "title": "Impact",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "exit_condition": {
+      "type": "string",
+      "title": "Exit condition",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    }
+  }
+}

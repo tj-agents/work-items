@@ -1,15 +1,15 @@
 ---
 name: manage
-description: Optional GitHub work-item templates and deterministic tracking tools.
+description: Generate, validate and preview deterministic feature, task, bug, mistake and technical-debt records for an explicitly selected GitHub tracker.
 kind: utility
 domain: work-items
 profile: core
-applicability: Work items
-requires: work-items
+applicability: repositories explicitly adopting GitHub work items
+requires: python
 provenance: house
 ---
 
-# manage
+# Manage work items
 
 Read and follow the [canonical definition](../../../.agents/work-items/utility/manage/SKILL.md) in full.
 This discovery entry is generated; edit the referenced `.agents/` definition.
