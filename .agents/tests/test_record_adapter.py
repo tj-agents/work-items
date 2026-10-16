@@ -2,6 +2,7 @@ import copy
 import json
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -28,6 +29,7 @@ class AdapterTests(unittest.TestCase):
     def test_another_provider_blocks_adoption_before_any_remote_call_or_local_write(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
             selected = root / ".problem-records.json"
             selected.write_text(json.dumps({"schema_version": 1, "provider": "work:track"}), encoding="utf-8")
             api = self.api()
@@ -39,6 +41,7 @@ class AdapterTests(unittest.TestCase):
     def test_both_selections_are_required_and_repeated_adoption_is_idempotent(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
             root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
             (root / github.CONFIG).write_text(json.dumps(CONFIG), encoding="utf-8")
             with self.assertRaisesRegex(records.ItemError, "finish adopt"):
                 github.selection(root)
@@ -56,6 +59,7 @@ class AdapterTests(unittest.TestCase):
             return original_open(path, *args, **kwargs)
         with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"), patch.object(Path, "open", opening):
             root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
             with self.assertRaisesRegex(OSError, "controlled"):
                 github.adopt(root, "owner/project", self.api())
             self.assertFalse((root / github.CONFIG).exists())
@@ -87,6 +91,46 @@ class AdapterTests(unittest.TestCase):
         with patch.object(reader, "selection", return_value=CONFIG), patch.object(reader, "GitHub", return_value=api):
             with self.assertRaisesRegex(records.ItemError, "manually edited"):
                 reader.read("source", reference)
+
+    def test_reader_rejects_metadata_only_kind_changes(self):
+        reference = "https://github.com/owner/project/issues/1"
+        body = github.body_for(self.facts(), "adapter-request")
+        info, text = github.metadata(body)
+        info["kind"] = "debt"
+        issue = {"number": 1, "html_url": reference, "state": "open", "title": "Observed problem",
+                 "body": text + "\n<!-- work-item:v1 " + github.json_text(info) + " -->\n"}
+        api = Mock(request=Mock(return_value=issue))
+        with patch.object(reader, "selection", return_value=CONFIG), patch.object(reader, "GitHub", return_value=api):
+            with self.assertRaisesRegex(records.ItemError, "kind differs"):
+                reader.read("source", reference)
+
+    def test_overlapping_adoption_cannot_report_success_or_remove_the_first_writers_files(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            original_open = Path.open
+            second_api = self.api()
+            def opening(path, *args, **kwargs):
+                if path.name == ".problem-records.json" and args and args[0] == "x":
+                    self.assertTrue((root / github.CONFIG).exists())
+                    with self.assertRaisesRegex(records.ItemError, "already running"):
+                        github.adopt(root, "owner/project", second_api)
+                    second_api.request.assert_not_called()
+                    raise OSError("controlled failure after overlapping attempt")
+                return original_open(path, *args, **kwargs)
+            with patch.object(Path, "open", opening), self.assertRaisesRegex(OSError, "controlled"):
+                github.adopt(root, "owner/project", self.api())
+            self.assertFalse((root / github.CONFIG).exists())
+            self.assertEqual(PROVIDER, github.adopt(root, "owner/project", self.api())["problem_provider"])
+
+    def test_adoption_lock_is_released_when_the_process_exits(self):
+        from request_journal import adoption_lock
+        with tempfile.TemporaryDirectory() as directory:
+            subprocess.run(["git", "init", "-q", directory], check=True)
+            script = "import sys, os\nsys.path.insert(0, " + repr(str(SCRIPTS)) + ")\nfrom request_journal import adoption_lock\nwith adoption_lock(" + repr(directory) + "):\n os._exit(0)\n"
+            subprocess.run([sys.executable, "-B", "-c", script], check=True, timeout=15)
+            with adoption_lock(directory):
+                pass
 
     def test_problem_facts_and_disposition_have_deterministic_rendering(self):
         facts = self.facts()

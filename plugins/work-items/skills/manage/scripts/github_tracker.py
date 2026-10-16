@@ -310,6 +310,12 @@ class Tracker:
 
 
 def adopt(root, repository, api):
+    from request_journal import adoption_lock
+    with adoption_lock(root):
+        return adopt_locked(root, repository, api)
+
+
+def adopt_locked(root, repository, api):
     root = Path(root).resolve()
     provider_path = root / ".problem-records.json"
     provider = {"schema_version": 1, "provider": "work-items:manage"}

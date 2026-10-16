@@ -22,22 +22,22 @@
     "hooks": [],
     "permissions": {
       "claude_allow": [
-        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
-        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
-        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
-        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)"
+        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
+        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
+        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
+        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)"
       ],
       "codex_prefix_rules": [
         {

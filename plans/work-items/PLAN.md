@@ -111,3 +111,10 @@ Next: freeze and review this adapter delta against the transport parent, deliver
 publish an immutable release and register optional discovery before personal adoption.
 
 Adapter review P2 accepted and reproduced: a manually edited body with a stale managed trailer must not reach Core. The reader now checks the same rendered-body digest as update. The regression and full package checks run before the correction checkpoint.
+
+
+## Adapter review correction
+
+Independent workflow review found metadata-only kind changes could disagree with the hashed body, and concurrent adoption could roll back another successful writer. Reject ambiguous/mismatched Tracking kinds and serialize the complete adoption operation with a crash-released OS file lock in Git runtime metadata. Keep rollback inside the lock. Claude script permissions must include command arguments. Add focused regression cases, regenerate both hosts, then review the committed correction. Transport PR #5 and retained B001 PR #6 are merged; Core PR #272 merged at 6aea302, with causal main CI 38834317856 pending.
+
+Correction validation: 32 tests cover stale body hashes, metadata kind disagreement, overlapping adoption rollback and process-exit lock release. Generation remains 53 files. Native and workflow/security correction review follows the committed checkpoint.

@@ -1,4 +1,7 @@
+from contextlib import contextmanager
+import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 
@@ -47,3 +50,33 @@ class RequestJournal:
         if type(resource_id) is not int or resource_id <= 0:
             raise ItemError("request response has no durable identity; reconcile without reposting")
         self.path(key).write_text(json.dumps({"fingerprint": fingerprint, "resource_id": resource_id}) + "\n", encoding="utf-8", newline="\n")
+
+
+@contextmanager
+def adoption_lock(root):
+    root = Path(root).resolve()
+    directory = RequestJournal(root).root.parent / "adoptions"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / (hashlib.sha256(os.path.normcase(str(root)).encode("utf-8")).hexdigest() + ".lock")
+    with path.open("a+b") as handle:
+        if handle.seek(0, 2) == 0:
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise ItemError("repository adoption is already running; retry after its writer finishes") from error
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
