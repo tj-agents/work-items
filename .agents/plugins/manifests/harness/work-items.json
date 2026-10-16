@@ -22,13 +22,21 @@
     "hooks": [],
     "permissions": {
       "claude_allow": [
+        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
         "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
         "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
         "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
         "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
         "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
         "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py)",
         "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py)",
+        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py)",
         "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py)"
       ],
       "codex_prefix_rules": [
@@ -63,6 +71,40 @@
             [
               "python",
               "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py"
+            ]
+          ]
+        },
+        {
+          "pattern": [
+            [
+              "python",
+              "python.exe",
+              "python3",
+              "py"
+            ],
+            "-B",
+            [
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py",
+              "${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py"
+            ]
+          ],
+          "justification": "Read one current canonical problem record from the explicitly adopted source tracker for Core admission; this reader performs no GitHub writes.",
+          "match": [
+            [
+              "python",
+              "-B",
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py"
+            ],
+            [
+              "python",
+              "-B",
+              "${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py"
+            ]
+          ],
+          "not_match": [
+            [
+              "python",
+              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py"
             ]
           ]
         }

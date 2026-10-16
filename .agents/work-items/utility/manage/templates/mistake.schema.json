@@ -72,7 +72,7 @@
     },
     "cause": {
       "type": "string",
-      "title": "Cause or explicitly unknown",
+      "title": "Cause and evidence",
       "minLength": 1,
       "pattern": "\\S",
       "maxLength": 65536
@@ -93,10 +93,84 @@
     },
     "verification": {
       "type": "string",
-      "title": "Verification required",
+      "title": "Verification evidence",
       "minLength": 1,
       "pattern": "\\S",
       "maxLength": 65536
+    },
+    "observed": {
+      "type": "string",
+      "title": "Observed or reported",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "source_owner": {
+      "type": "string",
+      "title": "Causal source owner",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "state": {
+      "type": "string",
+      "title": "Problem state",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536,
+      "enum": [
+        "open",
+        "in-progress",
+        "blocked",
+        "deferred",
+        "resolved"
+      ]
+    },
+    "repair": {
+      "type": "string",
+      "title": "Canonical repair",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "next_action": {
+      "type": "string",
+      "title": "Next action",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "blocked_by": {
+      "type": "string",
+      "title": "Blocker class",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536,
+      "enum": [
+        "capability",
+        "dependency",
+        "conflict",
+        "capacity"
+      ]
+    },
+    "resolver": {
+      "type": "string",
+      "title": "Resolver",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "resume_condition": {
+      "type": "string",
+      "title": "Observable resume condition",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 65536
+    },
+    "handoff_disposition": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Typed Core disposition transported as one deterministic agent-handoff-disposition fence; Core owns semantic admission."
     }
   }
 }

@@ -16,7 +16,7 @@
         "repositories explicitly adopting GitHub work items"
       ],
       "requires": [
-        "python",
+        "python>=3.9",
         "git",
         "gh"
       ],

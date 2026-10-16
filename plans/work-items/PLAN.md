@@ -74,3 +74,18 @@ and uncertain-response regression cases; 49 generated files are current. Indepen
 repeat live pilot are next. The foundation is PR #3 at 8ec0b6a; GitHub blocked jobs before startup due to
 account billing/spending limits. User choice between public generic tooling and restoring private CI is
 pending; no CI retry, green remote result or installed-host acceptance is claimed.
+
+## Core adapter slice
+
+Active child Feature/CoreRecordAdapter starts at parent Feature/GitHubTransport 54edc5f while the
+parent's frozen retry repair is independently reviewed and the foundation's external CI block clears.
+This proper dependent stack keeps each reviewed candidate unchanged. This child owns current package
+progress; earlier plan copies remain frozen with their delivery candidates. No installation or migration
+is claimed. The Core protocol owner is core/.worktrees/Feature-ProblemRecordBackends/plans/problem-record-backends/PLAN.md.
+
+Scope: ship scripts/read_problem_record.py, coordinated explicit .work-items.json and .problem-records.json
+adoption, deterministic optional typed disposition fences, complete shared problem facts and focused
+protocol/adoption tests. Refuse an existing different provider before writing either selection. Missing
+or malformed provider declarations never silently choose this package. Installed-host and live Core
+admission acceptance wait for both packages' reviewed publication. Use the existing qualified foreign
+plugin injector rather than adding a backend-specific registry or globally adopting personal policy.
