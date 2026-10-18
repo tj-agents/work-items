@@ -244,6 +244,7 @@ class SelectionTests(unittest.TestCase):
     def test_no_selection_different_origin_and_work_backend_are_refused(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
             with self.assertRaisesRegex(records.ItemError, "explicit"):
                 github.selection(root)
             path = root / github.CONFIG

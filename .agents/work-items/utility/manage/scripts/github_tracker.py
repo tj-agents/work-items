@@ -64,6 +64,32 @@ class GitHub:
             raise APIError("GitHub returned an invalid response; a write outcome may be uncertain") from error
 
 
+def source_primary(root):
+    root = Path(root).resolve()
+    try:
+        top = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+        inventory = subprocess.run(["git", "-C", str(root), "worktree", "list", "--porcelain", "-z"],
+                                   capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
+        if top.returncode or inventory.returncode or not top.stdout.rstrip("\r\n") or not inventory.stdout.endswith("\0\0"):
+            raise ItemError("cannot resolve source primary checkout from Git worktrees")
+        current = Path(top.stdout.rstrip("\r\n")).resolve()
+        checkouts = []
+        for block in inventory.stdout[:-2].split("\0\0"):
+            fields = block.split("\0")
+            if not fields[0].startswith("worktree ") or sum(field.startswith("worktree ") for field in fields) != 1:
+                raise ItemError("invalid Git worktree inventory")
+            location = fields[0][len("worktree "):]
+            if not location or not Path(location).is_absolute():
+                raise ItemError("invalid Git worktree checkout path")
+            checkouts.append(Path(location).resolve())
+        if current not in checkouts or not checkouts[0].is_dir():
+            raise ItemError("source primary checkout is unavailable or current checkout is absent from Git worktrees")
+        return checkouts[0]
+    except (OSError, subprocess.SubprocessError, UnicodeError) as error:
+        raise ItemError("cannot resolve source primary checkout from Git worktrees") from error
+
+
 def source_repository(root):
     result = subprocess.run(["git", "-C", str(root), "config", "--get", "remote.origin.url"],
                             capture_output=True, text=True, encoding="utf-8", timeout=15, check=False)
@@ -82,7 +108,8 @@ def source_repository(root):
 
 
 def selection(root, require_provider=True):
-    path = Path(root).resolve() / CONFIG
+    root = source_primary(root)
+    path = root / CONFIG
     if path.is_symlink():
         raise ItemError("tracker configuration must be a regular repository file")
     try:
@@ -311,7 +338,8 @@ class Tracker:
 
 
 def adopt(root, repository, api):
-    check_provider(Path(root).resolve())
+    root = source_primary(root)
+    check_provider(root)
     from request_journal import adoption_lock
     with adoption_lock(root):
         return adopt_locked(root, repository, api)
@@ -333,7 +361,7 @@ def check_provider(root):
 
 
 def adopt_locked(root, repository, api):
-    root = Path(root).resolve()
+    root = source_primary(root)
     provider_path, provider = check_provider(root)
     if not REPOSITORY.fullmatch(repository) or source_repository(root).casefold() != repository.casefold():
         raise ItemError("adoption repository must match the source origin")
