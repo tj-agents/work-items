@@ -3,12 +3,16 @@
   "marketplaces": {
     "tj-agents": {
       "repository": "tj-agents/marketplace"
+    },
+    "work-items-agents": {
+      "repository": "tj-agents/work-items"
     }
   },
   "plugins": [
     "base@tj-agents",
     "engineering@tj-agents",
     "machine@tj-agents",
-    "template@tj-agents"
+    "template@tj-agents",
+    "work-items@work-items-agents"
   ]
 }
