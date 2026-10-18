@@ -4,6 +4,10 @@ source_type = "git"
 source = "https://github.com/tj-agents/marketplace.git"
 sparse_paths = [".agents/plugins", ".claude-plugin", "plugins"]
 
+[marketplaces.work-items-agents]
+source_type = "git"
+source = "https://github.com/tj-agents/work-items.git"
+
 [plugins."base@tj-agents"]
 enabled = true
 
@@ -14,6 +18,9 @@ enabled = true
 enabled = true
 
 [plugins."template@tj-agents"]
+enabled = true
+
+[plugins."work-items@work-items-agents"]
 enabled = true
 
 # END repo-declared agent capabilities
