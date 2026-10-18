@@ -42,6 +42,12 @@ python -B <skill-directory>/scripts/work_item.py link --root . --item owner/proj
 python -B <skill-directory>/scripts/work_item.py close --root . --item owner/project#1 --text-file verification.txt --request-id UNIQUE-STABLE-ID
 ```
 
+Every tracker operation resolves `--root` through Git's worktree inventory to the source primary
+checkout. Run from a primary checkout, nested directory or feature worktree; only the primary's
+selection files apply. A missing primary or invalid primary selection fails visibly, even when a
+feature worktree has its own declarations. Adoption writes only in the primary checkout.
+Local schema, template, validation and preview commands remain usable outside Git.
+
 Adoption writes `.work-items.json` and Core's `.problem-records.json` provider declaration together,
 refusing another existing provider before either write. It verifies origin and source issue availability, and records
 available native issue types. Commit that selection to sync it across computers. Where native types
