@@ -54,7 +54,7 @@
               "${PLUGIN_ROOT}/skills/manage/scripts/work_item.py"
             ]
           ],
-          "justification": "The explicitly adopted tracker script validates source origin and work-item facts before GitHub issue operations; preview and schemas remain local.",
+          "justification": "The tracker resolves the source primary checkout and validates its explicit selection, origin and work-item facts before GitHub issue operations; preview and schemas remain local.",
           "match": [
             [
               "python",
@@ -88,7 +88,7 @@
               "${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py"
             ]
           ],
-          "justification": "Read one current canonical problem record from the explicitly adopted source tracker for Core admission; this reader performs no GitHub writes.",
+          "justification": "Read one current canonical problem record using the source primary checkout's explicit tracker selection for Core admission; this reader performs no GitHub writes.",
           "match": [
             [
               "python",
