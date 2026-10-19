@@ -10,6 +10,7 @@ from email.message import Message
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import unquote, urlsplit
 
 import pytest
 
@@ -34,6 +35,11 @@ CONFIG: dict[str, object] = {
         "mistake": "Mistake",
         "debt": "Debt",
     },
+}
+
+LIFECYCLE: dict[str, Mapping[str, object]] = {
+    kind: {"open": "New", "closed": "Closed", "inactive": ("Closed", "Removed")}
+    for kind in ("feature", "task", "bug", "mistake", "debt")
 }
 
 FIELDS = {
@@ -81,6 +87,9 @@ class FakeAzure:
         self.unauthorized_wiql = False
         self.drop_created_parent = False
         self.hide_query_results = False
+        self.calls: list[tuple[str, str, object]] = []
+        self.edit_after_write: str | None = None
+        self.ignore_state_filter = False
 
     def request(
         self,
@@ -89,6 +98,7 @@ class FakeAzure:
         payload: Mapping[str, object] | Sequence[Mapping[str, object]] | None = None,
         content_type: str = "application/json",
     ) -> object:
+        self.calls.append((method, suffix, copy.deepcopy(payload)))
         if method == "POST" and suffix.startswith("wiql"):
             if self.unauthorized_wiql:
                 raise APIError("Azure DevOps POST failed (HTTP 401)", 401)
@@ -110,7 +120,7 @@ class FakeAzure:
             self.next_id += 1
             fields: dict[str, object] = {
                 "System.TeamProject": CONFIG["project"],
-                "System.WorkItemType": suffix.removeprefix("workitems/$"),
+                "System.WorkItemType": unquote(suffix.removeprefix("workitems/$")),
                 "System.State": "New",
             }
             item: dict[str, object] = {
@@ -120,6 +130,10 @@ class FakeAzure:
                 "relations": [],
             }
             self._patch(item, payload)
+            if self.edit_after_write is not None:
+                fields = item["fields"]
+                assert isinstance(fields, dict)
+                fields[self.edit_after_write] = "Facts changed through Azure UI"
             if self.drop_created_parent:
                 item["relations"] = []
             self.items[identifier] = item
@@ -142,6 +156,10 @@ class FakeAzure:
             assert isinstance(payload, Sequence)
             item = self.items[identifier]
             self._patch(item, payload)
+            if self.edit_after_write is not None:
+                fields = item["fields"]
+                assert isinstance(fields, dict)
+                fields[self.edit_after_write] = "Facts changed through Azure UI"
             revision = item["rev"]
             assert isinstance(revision, int)
             item["rev"] = revision + 1
@@ -155,17 +173,25 @@ class FakeAzure:
             "System.TeamProject": fields["System.TeamProject"],
             "Custom.PersonalRepository": fields.get("Custom.PersonalRepository"),
             "Custom.PersonalRequestId": fields.get("Custom.PersonalRequestId"),
-            "System.WorkItemType": fields["System.WorkItemType"],
         }
         for field, value in checks.items():
             match = re.search(rf"\[{re.escape(field)}\] = '((?:''|[^'])*)'", query)
             if match is not None and str(value) != match.group(1).replace("''", "'"):
                 return False
-        return all(
-            f"[System.State] <> '{state}'" not in query
-            or fields["System.State"] != state
-            for state in ("Closed", "Removed")
+        type_clauses = re.findall(
+            r"\(\[System.WorkItemType\] = '((?:''|[^'])*)'([^()]*)\)", query
         )
+        if not type_clauses:
+            return True
+        for native_type, conditions in type_clauses:
+            if fields["System.WorkItemType"] != native_type.replace("''", "'"):
+                continue
+            inactive = re.findall(r"\[System.State\] <> '((?:''|[^'])*)'", conditions)
+            if self.ignore_state_filter or fields["System.State"] not in {
+                state.replace("''", "'") for state in inactive
+            }:
+                return True
+        return False
 
     def _patch(
         self, item: dict[str, object], patch: Sequence[Mapping[str, object]]
@@ -226,7 +252,9 @@ def record(kind: str) -> dict[str, object]:
 
 def tracker() -> tuple[Tracker, FakeAzure]:
     api = FakeAzure()
-    return Tracker(Path(), CONFIG, api, MemoryJournal(), fields=FIELDS), api
+    return Tracker(
+        Path(), CONFIG, api, MemoryJournal(), fields=FIELDS, lifecycle=LIFECYCLE
+    ), api
 
 
 def item_id(item: Mapping[str, object]) -> int:
@@ -255,7 +283,14 @@ def test_tracker_requires_complete_distinct_azure_reference_fields(
     fields: Mapping[str, str],
 ) -> None:
     with pytest.raises(ItemError, match="managed-field"):
-        Tracker(Path(), CONFIG, FakeAzure(), MemoryJournal(), fields=fields)
+        Tracker(
+            Path(),
+            CONFIG,
+            FakeAzure(),
+            MemoryJournal(),
+            fields=fields,
+            lifecycle=LIFECYCLE,
+        )
 
 
 @pytest.mark.parametrize("kind", ["feature", "task", "bug", "mistake", "debt"])
@@ -505,3 +540,224 @@ def test_default_list_excludes_inactive_items_but_preserves_history(state: str) 
     history = value.list_items(include_closed=True)
     assert len(history) == 1
     assert history[0]["state"] == state
+
+
+@pytest.mark.parametrize("native_type", ["User Story", "User Story/Review #1?"])
+def test_create_quotes_native_type_as_one_segment_through_http_client(
+    native_type: str,
+) -> None:
+    config = copy.deepcopy(CONFIG)
+    config["kinds"] = {"feature": native_type}
+    api = FakeAzure()
+    urls: list[str] = []
+
+    def open_request(request: Any, timeout: float) -> FakeResponse:
+        urls.append(request.full_url)
+        suffix = urlsplit(request.full_url).path.split("/_apis/wit/", 1)[1]
+        payload = json.loads(request.data) if request.data is not None else None
+        result = api.request(request.method, suffix, payload)
+        return FakeResponse(json.dumps(result).encode("utf-8"))
+
+    value = Tracker(
+        Path(),
+        config,
+        Client(config, "unused-token", open_request),
+        MemoryJournal(),
+        fields=FIELDS,
+        lifecycle={"feature": LIFECYCLE["feature"]},
+    )
+    created = value.create(record("feature"), "quoted-type")
+    assert created["kind"] == "feature"
+    expected = {
+        "User Story": "User%20Story",
+        "User Story/Review #1?": "User%20Story%2FReview%20%231%3F",
+    }[native_type]
+    assert any(url.endswith(f"/workitems/${expected}?api-version=7.1") for url in urls)
+
+
+@pytest.mark.parametrize(
+    "lifecycle",
+    [
+        {},
+        {"task": LIFECYCLE["task"]},
+        {**LIFECYCLE, "unknown": LIFECYCLE["task"]},
+        {**LIFECYCLE, "task": {"open": "ToDo", "closed": "Done"}},
+        {**LIFECYCLE, "task": {"open": "ToDo", "closed": "Done", "inactive": "Done"}},
+        {**LIFECYCLE, "task": {"open": "ToDo", "closed": "Done", "inactive": []}},
+        {**LIFECYCLE, "task": {"open": "Done", "closed": "Done", "inactive": ["Done"]}},
+        {**LIFECYCLE, "task": {"open": " ", "closed": "Done", "inactive": ["Done"]}},
+        {**LIFECYCLE, "task": {"open": "ToDo", "closed": " ", "inactive": [" "]}},
+        {
+            **LIFECYCLE,
+            "task": {"open": "ToDo", "closed": "Done", "inactive": ["Done", ""]},
+        },
+        {
+            **LIFECYCLE,
+            "task": {"open": "ToDo", "closed": "Done", "inactive": ["Done", 1]},
+        },
+        {
+            **LIFECYCLE,
+            "task": {
+                "open": "ToDo",
+                "closed": "Done",
+                "inactive": ["Done"],
+                "extra": "x",
+            },
+        },
+    ],
+)
+def test_invalid_lifecycle_refuses_before_azure_access(
+    lifecycle: Mapping[str, Mapping[str, object]],
+) -> None:
+    api = FakeAzure()
+    with pytest.raises(ItemError, match="lifecycle"):
+        Tracker(
+            Path(), CONFIG, api, MemoryJournal(), fields=FIELDS, lifecycle=lifecycle
+        )
+    assert api.calls == []
+
+
+def test_lifecycle_is_required() -> None:
+    with pytest.raises(TypeError, match="lifecycle"):
+        Tracker(Path(), CONFIG, FakeAzure(), MemoryJournal(), fields=FIELDS)
+
+
+def test_per_kind_lifecycle_targets_filters_and_copies_policy() -> None:
+    api = FakeAzure()
+    task_inactive = ["Done", "Canceled"]
+    lifecycle = {
+        **LIFECYCLE,
+        "task": {"open": "ToDo", "closed": "Done", "inactive": task_inactive},
+        "feature": {
+            "open": "Planned",
+            "closed": "Delivered",
+            "inactive": ["Delivered"],
+        },
+    }
+    value = Tracker(
+        Path(), CONFIG, api, MemoryJournal(), fields=FIELDS, lifecycle=lifecycle
+    )
+    task_inactive.clear()
+    lifecycle["task"]["closed"] = "Wrong"
+    lifecycle["feature"]["open"] = "Wrong"
+    task = value.create(record("task"), "policy-task")
+    feature = value.create(record("feature"), "policy-feature")
+    assert value.set_state(str(task["url"]), "closed")["state"] == "Done"
+    assert value.set_state(str(feature["url"]), "closed")["state"] == "Delivered"
+    assert value.list_items() == []
+    assert len(value.list_items(include_closed=True)) == 2
+    assert value.set_state(str(task["url"]), "open")["state"] == "ToDo"
+    assert value.set_state(str(feature["url"]), "open")["state"] == "Planned"
+    fields = api.items[item_id(feature)]["fields"]
+    assert isinstance(fields, dict)
+    fields["System.State"] = "Done"
+    assert {item["id"] for item in value.list_items()} == {task["id"], feature["id"]}
+    assert [item["id"] for item in value.list_items("task")] == [task["id"]]
+    value.set_state(str(task["url"]), "closed")
+    assert [item["id"] for item in value.list_items()] == [feature["id"]]
+    assert value.list_items("task") == []
+    api.ignore_state_filter = True
+    with pytest.raises(ItemError, match="closed work item"):
+        value.list_items()
+
+
+@pytest.mark.parametrize("count", [1000, 1001])
+def test_list_limit_returns_exactly_1000_or_refuses_before_partial_reads(
+    count: int,
+) -> None:
+    value, api = tracker()
+    created = value.create(record("task"), "list-limit")
+    seed = api.items[item_id(created)]
+    api.items = {
+        identifier: {**copy.deepcopy(seed), "id": identifier}
+        for identifier in range(1, count + 1)
+    }
+    api.calls.clear()
+    if count == 1000:
+        result = value.list_items()
+        assert len(result) == 1000
+        assert {item["id"] for item in result} == set(range(1, 1001))
+    else:
+        with pytest.raises(ItemError, match="exceeds the 1000-item limit"):
+            value.list_items()
+        assert len(api.calls) == 1
+    assert api.calls[0][0:2] == ("POST", "wiql?$top=1001")
+
+
+@pytest.mark.parametrize("field", ["System.Title", "System.Description"])
+@pytest.mark.parametrize(
+    "operation", ["create", "uncertain-create", "receipt", "update"]
+)
+def test_write_readback_rejects_visible_content_edits(
+    field: str, operation: str
+) -> None:
+    api = FakeAzure()
+    journal = MemoryJournal()
+    value = Tracker(Path(), CONFIG, api, journal, fields=FIELDS, lifecycle=LIFECYCLE)
+    facts = record("task")
+    if operation in {"receipt", "update"}:
+        created = value.create(facts, "visible-content")
+        if operation == "receipt":
+            fields = api.items[item_id(created)]["fields"]
+            assert isinstance(fields, dict)
+            fields[field] = "Facts changed through Azure UI"
+            api.hide_query_results = True
+    api.edit_after_write = field
+    api.persist_then_timeout = operation == "uncertain-create"
+    with pytest.raises(ItemError, match="edited outside"):
+        if operation == "update":
+            value.update(str(created["url"]), {**facts, "title": "Updated task"})
+        else:
+            value.create(facts, "visible-content")
+    assert api.posts == 1
+    if operation in {"create", "uncertain-create"}:
+        assert all(
+            receipt["resource_id"] is None for receipt in journal.receipts.values()
+        )
+        with pytest.raises(ItemError, match="edited outside"):
+            value.create(facts, "visible-content")
+        assert api.posts == 1
+
+
+@pytest.mark.parametrize("role", ["repository", "request", "record"])
+@pytest.mark.parametrize(
+    "native_field",
+    [
+        "System.Title",
+        "System.Description",
+        "System.State",
+        "System.TeamProject",
+        "System.WorkItemType",
+        "System.Id",
+        "System.Rev",
+        "system.description",
+    ],
+)
+def test_managed_field_collisions_refuse_before_writes(
+    role: str, native_field: str
+) -> None:
+    api = FakeAzure()
+    with pytest.raises(ItemError, match="managed-field"):
+        Tracker(
+            Path(),
+            CONFIG,
+            api,
+            MemoryJournal(),
+            fields={**FIELDS, role: native_field},
+            lifecycle=LIFECYCLE,
+        )
+    assert api.calls == []
+
+
+def test_managed_field_names_must_be_distinct_ignoring_case() -> None:
+    api = FakeAzure()
+    with pytest.raises(ItemError, match="managed-field"):
+        Tracker(
+            Path(),
+            CONFIG,
+            api,
+            MemoryJournal(),
+            fields={**FIELDS, "request": FIELDS["repository"].lower()},
+            lifecycle=LIFECYCLE,
+        )
+    assert api.calls == []
