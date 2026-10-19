@@ -80,3 +80,7 @@ def adoption_lock(root):
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+from runtime_bootstrap import _RUNTIME
+from tj_work_items.request_journal import *

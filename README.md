@@ -1,13 +1,13 @@
 # Work items
 
-Optional deterministic work-item tooling for explicitly selected personal GitHub repositories.
-Each source repository stores its feature, task, bug, mistake and technical-debt issues in GitHub.
-Core keeps shared engineering behavior; employer Azure DevOps policy stays with its owner.
+Deterministic work-item tooling with a neutral runtime for explicitly selected tracker providers.
+The included GitHub lifecycle remains opt-in per source repository. Personal and employer providers
+reuse the runtime with their own credentials, field mappings and tracker policy.
 
 ## Use
 
-The `work-items:manage` utility ships five JSON schemas and scripts for skeletons, validation,
-Markdown rendering and the GitHub lifecycle. Start with actual facts; an empty skeleton fails validation.
+The `work-items:manage` utility ships five JSON schemas, validation, Markdown rendering, the GitHub
+lifecycle, and the installable `tj_work_items` runtime. Start with actual facts; an empty skeleton fails validation.
 
 ```text
 python -B .agents/work-items/utility/manage/scripts/work_item.py template --kind feature
@@ -25,7 +25,8 @@ sync selection across computers. Installing the package alone does not adopt a t
 hash-checked updates, notes, links, verified close, explicit retry reconciliation and Core transport.
 Persist request IDs before writes. Keep local submission receipts after uncertain outcomes; on another
 computer or after receipt loss use `--reconcile-only`. Concurrent writers still require coordination.
-GitHub holds canonical issue data; local receipts protect retries and are not another backlog.
+GitHub holds canonical issue data for its lifecycle; local receipts protect retries and are not another backlog.
+The shared runtime supports provider-owned Azure operations without selecting or adopting GitHub.
 
 ## Source and checks
 

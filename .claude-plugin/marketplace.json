@@ -8,7 +8,7 @@
     {
       "name": "work-items",
       "source": "./plugins/work-items",
-      "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+      "description": "Deterministic work-item tools and neutral provider runtime.",
       "category": "Productivity",
       "keywords": [
         "work-items"
