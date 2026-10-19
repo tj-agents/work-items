@@ -1,11 +1,11 @@
 ---
 name: manage
-description: Generate, validate and preview deterministic feature, task, bug, mistake and technical-debt records for an explicitly selected GitHub tracker.
+description: Supply deterministic work-item schemas and neutral provider primitives. Use for explicit GitHub lifecycle operations or when a provider needs the shared record, receipt and Azure transport runtime.
 kind: utility
 domain: work-items
 profile: core
-applicability: repositories explicitly adopting GitHub work items
-requires: python>=3.9, git, gh
+applicability: provider packages and repositories explicitly adopting GitHub work items
+requires: python>=3.9, git; authenticated gh for GitHub lifecycle operations
 provenance: house
 ---
 
@@ -13,6 +13,7 @@ provenance: house
 
 Use the script beside this skill. Substitute its actual installed directory for `<skill-directory>`;
 use `python3` on Linux/macOS and `python` on Windows. Do not guess another skill's location.
+GitHub lifecycle commands additionally require an authenticated GitHub CLI.
 
 ```text
 python -B <skill-directory>/scripts/work_item.py template --kind bug
@@ -22,7 +23,7 @@ python -B <skill-directory>/scripts/work_item.py preview --input facts.json
 ```
 
 `--input -` reads stdin. Output is compact JSON; preview returns `title` and `body`.
-The five schemas under `templates/` generate both the input skeleton and Markdown sections.
+The five schemas under `runtime/src/tj_work_items/templates/` generate both the input skeleton and Markdown sections.
 Supply substantive facts and acceptance/verification conditions; scripts own boilerplate.
 An empty skeleton deliberately fails validation. Unknown causes must be stated as unknown.
 Do not invent priorities, causes, repro steps or passed verification. Keep source links and
@@ -75,10 +76,13 @@ Close only after real resolution verification, recorded in the supplied text fil
 An already-closed response reports existing state and does not claim new verification. Plans and
 curated knowledge remain in the source repository. Offline writes fail visibly; do useful local
 work and retain unsent input without claiming remote synchronization.
-Installing the package alone does not select a tracker or change employer policy. Existing
+Installing the package alone does not select a tracker or change employer policy. Provider packages
+use `runtime/src/tj_work_items/` for neutral records, receipts and Azure transport; its use does not
+select GitHub or authorize its lifecycle. The GitHub commands above require their explicit selection
+and adoption. Existing
 Core repair workflows retain ownership of diagnosis and delivery. Keep work repository evidence
-in its authorized repository. Plans and curated knowledge stay with source; live backlog storage
-will use issues in that same repository after explicit adoption.
+in its authorized repository. Plans and curated knowledge stay with source; the GitHub lifecycle writes
+issues in that same repository only after explicit adoption.
 
 
 For Core problem records, include the schema's observed date, cause (or explicit unknown), source owner,

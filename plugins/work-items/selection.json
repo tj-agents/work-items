@@ -13,12 +13,11 @@
       "kind": "utility",
       "profile": "core",
       "applicability": [
-        "repositories explicitly adopting GitHub work items"
+        "provider packages and repositories explicitly adopting GitHub work items"
       ],
       "requires": [
         "python>=3.9",
-        "git",
-        "gh"
+        "git; authenticated gh for GitHub lifecycle operations"
       ],
       "provenance": [
         "house"

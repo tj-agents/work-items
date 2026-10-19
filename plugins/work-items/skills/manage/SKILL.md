@@ -1,11 +1,11 @@
 ---
 name: manage
-description: Generate, validate and preview deterministic feature, task, bug, mistake and technical-debt records for an explicitly selected GitHub tracker.
+description: Supply deterministic work-item schemas and neutral provider primitives. Use for explicit GitHub lifecycle operations or when a provider needs the shared record, receipt and Azure transport runtime.
 kind: utility
 domain: work-items
 profile: core
-applicability: repositories explicitly adopting GitHub work items
-requires: python>=3.9, git, gh
+applicability: provider packages and repositories explicitly adopting GitHub work items
+requires: python>=3.9, git; authenticated gh for GitHub lifecycle operations
 provenance: house
 ---
 

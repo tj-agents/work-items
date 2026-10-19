@@ -1,6 +1,6 @@
 {
   "name": "work-items",
-  "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+  "description": "Deterministic work-item tools and neutral provider runtime.",
   "author": {
     "name": "Tommy Seery"
   },
@@ -11,8 +11,8 @@
   ],
   "interface": {
     "displayName": "Work items",
-    "shortDescription": "Optional GitHub work-item templates and deterministic tracking tools.",
-    "longDescription": "Optional GitHub work-item templates and deterministic tracking tools.",
+    "shortDescription": "Deterministic work-item tools and neutral provider runtime.",
+    "longDescription": "Deterministic work-item tools and neutral provider runtime.",
     "developerName": "Tommy Seery",
     "category": "Productivity",
     "capabilities": [],
