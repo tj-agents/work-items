@@ -17,6 +17,15 @@ from .request_journal import RequestJournal
 _REQUEST_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 _SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 _METADATA_FIELDS = {"schema_version", "request_id", "record", "sha256"}
+_NATIVE_FIELDS = {
+    "system.id",
+    "system.rev",
+    "system.title",
+    "system.description",
+    "system.state",
+    "system.teamproject",
+    "system.workitemtype",
+}
 
 
 class AzureClient(Protocol):
@@ -50,6 +59,12 @@ class Metadata(TypedDict):
     request_id: str
     record: dict[str, object]
     sha256: str
+
+
+class LifecyclePolicy(TypedDict):
+    open: str
+    closed: str
+    inactive: tuple[str, ...]
 
 
 class ManagedItem(TypedDict):
@@ -136,6 +151,32 @@ def _same_html(actual: str, expected: str) -> bool:
     ).replace("<br>", "<br/>")
 
 
+def _lifecycle_policy(value: object) -> LifecyclePolicy:
+    message = "Azure lifecycle mapping must define open, closed and inactive states"
+    if not isinstance(value, Mapping) or set(value) != {"open", "closed", "inactive"}:
+        raise ItemError(message)
+    open_state = value["open"]
+    closed_state = value["closed"]
+    inactive = value["inactive"]
+    if (
+        not isinstance(open_state, str)
+        or not open_state.strip()
+        or not isinstance(closed_state, str)
+        or not closed_state.strip()
+        or not isinstance(inactive, Sequence)
+        or isinstance(inactive, (str, bytes))
+    ):
+        raise ItemError(message)
+    states: list[str] = []
+    for state in inactive:
+        if not isinstance(state, str) or not state.strip():
+            raise ItemError(message)
+        states.append(state)
+    if closed_state not in states or open_state in states:
+        raise ItemError(message)
+    return {"open": open_state, "closed": closed_state, "inactive": tuple(states)}
+
+
 class Tracker:
     def __init__(
         self,
@@ -145,6 +186,7 @@ class Tracker:
         journal: Journal | None = None,
         *,
         fields: Mapping[str, str],
+        lifecycle: Mapping[str, Mapping[str, object]],
     ) -> None:
         self.root = Path(root)
         self.config = dict(context_config)
@@ -170,6 +212,11 @@ class Tracker:
             assert isinstance(key, str)
             assert isinstance(value, str)
             self.kinds[key] = value
+        if not isinstance(lifecycle, Mapping) or set(lifecycle) != set(self.kinds):
+            raise ItemError("Azure lifecycle mapping must cover every configured kind")
+        self.lifecycle = {
+            kind: _lifecycle_policy(policy) for kind, policy in lifecycle.items()
+        }
         reference_name = re.compile(
             r"(?:[A-Za-z][A-Za-z0-9_]*)+(?:\.(?:[A-Za-z][A-Za-z0-9_]*))+\Z"
         )
@@ -180,7 +227,8 @@ class Tracker:
                 not isinstance(value, str) or not reference_name.fullmatch(value)
                 for value in fields.values()
             )
-            or len(set(fields.values())) != 3
+            or len({value.casefold() for value in fields.values()}) != 3
+            or any(value.casefold() in _NATIVE_FIELDS for value in fields.values())
         ):
             raise ItemError(
                 "Azure managed-field mapping must contain repository, request "
@@ -240,7 +288,7 @@ class Tracker:
             try:
                 response = self.client.request(
                     "POST",
-                    f"workitems/${self.kinds[self._kind(record)]}",
+                    f"workitems/${quote(self.kinds[self._kind(record)], safe='')}",
                     patch,
                     "application/json-patch+json",
                 )
@@ -285,22 +333,30 @@ class Tracker:
             f"[System.TeamProject] = {self._wiql_literal(self.project)}",
             f"[{self.fields['repository']}] = {self._wiql_literal(self.repository)}",
         ]
-        if kind is not None:
-            clauses.append(
-                f"[System.WorkItemType] = {self._wiql_literal(self.kinds[kind])}"
-            )
-        if not include_closed:
-            clauses.extend(
-                ["[System.State] <> 'Closed'", "[System.State] <> 'Removed'"]
-            )
+        type_clauses = []
+        for selected in [kind] if kind is not None else self.kinds:
+            conditions = [
+                f"[System.WorkItemType] = {self._wiql_literal(self.kinds[selected])}"
+            ]
+            if not include_closed:
+                conditions.extend(
+                    f"[System.State] <> {self._wiql_literal(state)}"
+                    for state in self.lifecycle[selected]["inactive"]
+                )
+            type_clauses.append("(" + " AND ".join(conditions) + ")")
+        clauses.append("(" + " OR ".join(type_clauses) + ")")
         query = "SELECT [System.Id] FROM WorkItems WHERE " + " AND ".join(clauses)
         response = _mapping(
-            self.client.request("POST", "wiql?$top=1000", {"query": query}),
+            self.client.request("POST", "wiql?$top=1001", {"query": query}),
             "Azure DevOps returned an invalid WIQL response",
         )
         work_items = response.get("workItems")
         if not isinstance(work_items, list):
             raise ItemError("Azure DevOps returned an invalid WIQL response")
+        if len(work_items) > 1000:
+            raise ItemError(
+                "Azure work-item list exceeds the 1000-item limit; narrow the query"
+            )
         result: list[ManagedItem] = []
         for entry in work_items:
             identifier = _positive_id(
@@ -315,7 +371,10 @@ class Tracker:
                 raise ItemError(
                     "Azure DevOps WIQL returned a work item of the wrong kind"
                 )
-            if not include_closed and managed["state"] in {"Closed", "Removed"}:
+            if (
+                not include_closed
+                and managed["state"] in self.lifecycle[managed["kind"]]["inactive"]
+            ):
                 raise ItemError("Azure DevOps WIQL returned a closed work item")
             result.append(managed)
         return result
@@ -365,6 +424,7 @@ class Tracker:
             raise ItemError(
                 "update outcome uncertain; read the work item before retrying"
             ) from error
+        self._require_unedited(updated["raw"])
         updated_managed = self._managed(updated["raw"])
         if updated_managed["record"] != record:
             raise ItemError("Azure DevOps did not preserve the updated work-item facts")
@@ -375,7 +435,9 @@ class Tracker:
             raise ItemError("state action must be open or closed")
         current = self._read_id(self._url_id(url))
         managed = self._managed(current["raw"])
-        target = "New" if state == "open" else "Closed"
+        target = self.lifecycle[managed["kind"]][
+            "open" if state == "open" else "closed"
+        ]
         if managed["state"] == target:
             return managed
         patch: list[dict[str, object]] = [
@@ -683,11 +745,11 @@ class Tracker:
     def _same_create(
         self, found: Mapping[str, object], request_id: str, record: Mapping[str, object]
     ) -> None:
-        metadata = self._metadata(
-            _mapping(
-                found.get("raw"), "Azure DevOps returned an invalid work-item response"
-            )
+        raw = _mapping(
+            found.get("raw"), "Azure DevOps returned an invalid work-item response"
         )
+        self._require_unedited(raw)
+        metadata = self._metadata(raw)
         if metadata["request_id"] != request_id or metadata["record"] != record:
             raise ItemError("request-id already exists with different work-item facts")
 

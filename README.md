@@ -27,6 +27,17 @@ Persist request IDs before writes. Keep local submission receipts after uncertai
 computer or after receipt loss use `--reconcile-only`. Concurrent writers still require coordination.
 GitHub holds canonical issue data for its lifecycle; local receipts protect retries and are not another backlog.
 The shared runtime supports provider-owned Azure operations without selecting or adopting GitHub.
+`azure_tracker.Tracker(root, context_config, client, journal, *, fields, lifecycle)` requires
+provider-owned managed-field and lifecycle mappings. `fields` contains exactly `repository`, `request`
+and `record`, mapped to distinct Azure reference names without collisions with the native fields the
+tracker uses. `lifecycle` contains exactly the supported `context_config["kinds"]` keys; each entry
+contains exactly `open` and `closed` nonempty native state names plus `inactive`, a sequence of nonempty
+state names. `closed` must belong to `inactive`, and `open` must not. The tracker copies the validated
+policy. For example, a provider may supply `{"task": {"open": "ToDo", "closed": "Done",
+"inactive": ("Done", "Canceled")}}` when task is its only supported kind. State actions and list
+filters use each kind's policy. Lists over 1,000 items fail explicitly so a partial queue cannot appear
+complete. Azure updates test the revision read immediately before the write; callers must coordinate an
+exclusive item owner across their own read, decision and write window.
 
 ## Source and checks
 
