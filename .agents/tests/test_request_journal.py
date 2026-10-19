@@ -8,10 +8,7 @@ import pytest
 
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "work-items/utility/manage/runtime/src"
-    ),
+    str(Path(__file__).resolve().parents[1] / "work-items/utility/manage/runtime/src"),
 )
 
 from tj_work_items.records import ItemError
@@ -39,12 +36,16 @@ def test_namespaces_keep_receipts_isolated_and_preserve_format(tmp_path: Path) -
 
 
 @pytest.mark.parametrize("namespace", ["", "../personal", "personal/work", "UPPER"])
-def test_namespace_must_be_one_safe_path_segment(tmp_path: Path, namespace: str) -> None:
+def test_namespace_must_be_one_safe_path_segment(
+    tmp_path: Path, namespace: str
+) -> None:
     with pytest.raises(ItemError, match="namespace"):
         journal(tmp_path, namespace)
 
 
-def test_reservation_blocks_second_writer_and_preserves_pending_receipt(tmp_path: Path) -> None:
+def test_reservation_blocks_second_writer_and_preserves_pending_receipt(
+    tmp_path: Path,
+) -> None:
     value = journal(tmp_path)
     value.reserve("request", "fingerprint")
     assert value.read("request", "fingerprint") == {

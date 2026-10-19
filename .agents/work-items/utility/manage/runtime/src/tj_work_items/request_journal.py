@@ -46,9 +46,7 @@ class RequestJournal:
                 timeout=15,
             )
         except (OSError, subprocess.SubprocessError) as error:
-            raise ItemError(
-                "cannot locate work-item request receipts"
-            ) from error
+            raise ItemError("cannot locate work-item request receipts") from error
         if result.returncode or not result.stdout.strip():
             raise ItemError("work-item receipts require a Git source checkout")
         common = Path(result.stdout.strip())
@@ -157,8 +155,7 @@ class RequestJournal:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError as error:
                 raise ItemError(
-                    "another work-item writer is running; retry after it "
-                    "finishes"
+                    "another work-item writer is running; retry after it finishes"
                 ) from error
             try:
                 yield

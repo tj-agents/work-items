@@ -15,10 +15,7 @@ import pytest
 
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "work-items/utility/manage/runtime/src"
-    ),
+    str(Path(__file__).resolve().parents[1] / "work-items/utility/manage/runtime/src"),
 )
 
 from tj_work_items.azure_api import APIError, Client
@@ -261,29 +258,6 @@ def test_tracker_requires_complete_distinct_azure_reference_fields(
         Tracker(Path(), CONFIG, FakeAzure(), MemoryJournal(), fields=fields)
 
 
-@pytest.mark.parametrize(
-    "fields",
-    [
-        {"repository": "Custom.Repository", "request": "Custom.Request"},
-        {
-            "repository": "Custom.Repository",
-            "request": "Custom.Repository",
-            "record": "Custom.Record",
-        },
-        {
-            "repository": "not a reference",
-            "request": "Custom.Request",
-            "record": "Custom.Record",
-        },
-    ],
-)
-def test_tracker_requires_complete_distinct_azure_reference_fields(
-    fields: Mapping[str, str],
-) -> None:
-    with pytest.raises(ItemError, match="managed-field"):
-        Tracker(Path(), CONFIG, FakeAzure(), MemoryJournal(), fields=fields)
-
-
 @pytest.mark.parametrize("kind", ["feature", "task", "bug", "mistake", "debt"])
 def test_create_persists_every_supported_kind(kind: str) -> None:
     value, api = tracker()
@@ -481,6 +455,7 @@ def test_client_rejects_encoded_path_escape(suffix: str) -> None:
     client = Client(CONFIG, "token-value")
     with pytest.raises(APIError, match="endpoint"):
         client.request("GET", suffix)
+
 
 def test_uncertain_create_requires_verified_parent_before_success() -> None:
     value, api = tracker()

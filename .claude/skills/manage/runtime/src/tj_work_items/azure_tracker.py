@@ -152,9 +152,11 @@ class Tracker:
         self.project = self._config_text("project")
         self.repository = self._config_text("repository").lower()
         kinds = self.config.get("kinds")
-        if not isinstance(kinds, dict) or not kinds or not set(kinds) <= {
-            "feature", "task", "bug", "mistake", "debt"
-        }:
+        if (
+            not isinstance(kinds, dict)
+            or not kinds
+            or not set(kinds) <= {"feature", "task", "bug", "mistake", "debt"}
+        ):
             raise ItemError("Azure work-item type mapping is invalid")
         if any(
             not isinstance(key, str) or not isinstance(value, str) or not value
@@ -181,13 +183,13 @@ class Tracker:
             or len(set(fields.values())) != 3
         ):
             raise ItemError(
-                "Azure managed-field mapping must contain repository, request and record"
+                "Azure managed-field mapping must contain repository, request "
+                "and record"
             )
         self.fields = dict(fields)
         if client is None:
             raise ItemError(
-                "Azure work-item operations require an authenticated "
-                "Azure client"
+                "Azure work-item operations require an authenticated Azure client"
             )
         self.client = client
         self.journal = journal if journal is not None else RequestJournal(self.root)
@@ -649,7 +651,8 @@ class Tracker:
         query = "SELECT [System.Id] FROM WorkItems WHERE " + " AND ".join(
             [
                 f"[System.TeamProject] = {self._wiql_literal(self.project)}",
-                f"[{self.fields['repository']}] = {self._wiql_literal(self.repository)}",
+                f"[{self.fields['repository']}] = "
+                f"{self._wiql_literal(self.repository)}",
                 f"[{self.fields['request']}] = {self._wiql_literal(request_id)}",
             ]
         )

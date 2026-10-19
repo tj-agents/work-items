@@ -1,9 +1,12 @@
-"""Expose the shipped runtime package to direct source-checkout scripts."""
-
-from pathlib import Path
 import sys
+from pathlib import Path
 
 
-_RUNTIME = Path(__file__).resolve().parents[1] / "runtime" / "src"
-if str(_RUNTIME) not in sys.path:
-    sys.path.insert(0, str(_RUNTIME))
+def bootstrap() -> None:
+    runtime = Path(__file__).resolve().parents[1] / "runtime" / "src"
+    value = str(runtime)
+    if value not in sys.path:
+        sys.path.insert(0, value)
+
+
+bootstrap()
