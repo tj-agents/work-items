@@ -1,5 +1,10 @@
 # GitHub work-items implementation
 
+Current execution checkpoint: see **Shared runtime readiness - 20 October 2026** below.
+The earlier foundation/transport entries are retained history. This checkout owns shared-runtime
+PR #20 and the four-PR readiness assessment requested in the handoff; it does not take over the
+broader tracker/session implementation or consumer migration.
+
 Authorized by Tommy on 16 October 2026: implement the approved optional work-items package,
 shared integration, publication and personal repository adoption. Cross-repository decisions remain
 in docs/plans/problem-management/PLAN.md. This source plan owns package implementation only.
@@ -120,3 +125,80 @@ Independent workflow review found metadata-only kind changes could disagree with
 Correction validation: 32 tests cover stale body hashes, metadata kind disagreement, overlapping adoption rollback and process-exit lock release. Generation remains 53 files. Native and workflow/security correction review follows the committed checkpoint.
 
 Follow-up review: preserve arbitrary Markdown template examples by binding kind plus rendered text in a new optional managed metadata digest; old four-field metadata stays readable, while Core admission requires an explicit managed update to add the binding. Preflight a foreign provider before creating even runtime lock metadata, then recheck under the lock. Regression covers examples in summary/owner/links and legacy read/admission behavior.
+
+## Shared runtime readiness - 20 October 2026
+
+Authority: Tommy requested execution of
+`C:/Users/TommySeery/.claude/plans/core/handoff-work-items-runtime.md` from this checkout.
+Commit/push and PR preparation are authorized; Tommy alone merges. No new hooks, gates,
+launch-time plugin refresh, credential changes or consumer cutover belong to this slice.
+Owner: codex:01a15674-78c1-7703-8f6f-53e59ab10e57; registered work item
+`work-items/shared-runtime`, branch `Refactor/SharedWorkItemRuntime`.
+
+The broader source goal and its independent migration owner remain in
+`C:/Users/TommySeery/source/repos/tj-agents/core/.worktrees/Feature-TrackerAwareSkills/plans/tracker-aware-skills/GOAL.md`.
+That goal records the completed component assessment, accepted extraction boundaries, review
+repairs and installed Windows/Linux evidence. Carry those decisions forward. Its later backend
+decision selects GitHub for personal backlog content and preserves Azure for Infonetica; the
+historical personal Azure organization/setup gate does not authorize a new personal Azure rollout.
+
+Tommy's target owner for `session_store` and `work_item_sessions` is Work Items. The existing
+Core Machine SQLite store remains the current implementation. This readiness slice does not
+move it, create another database or claim that shared cloud-record mechanics deliver session storage.
+The older additive session-reference design and any package relocation need reconciliation in
+their own source slice before implementation.
+
+### Frozen deliveries and observed checks
+
+| Repository / PR | Exact head | Base | Observed state |
+| --- | --- | --- | --- |
+| tj-agents/work-items #20 | `9b2a2df1d8ff2a6c4968b39624cbdc683e33da07` | main `a69c5cd11e2f842631fdecdfa923d44fa9a494b1` | All seven reported checks pass; mergeable/CLEAN. Marked ready for review in this session; no merge. |
+| tj-agents/core #298 | `23e842c62feb9203d73cb94c75e945c42b3e6ac8` | main, observed `86dbae8a9fa199e451017ef4c51bcbae6a5587a9` | Required Windows/Linux/guard/aggregate checks pass at the head; regenerate skipped by workflow. REST reports mergeable/clean. Already ready; manual published-contract hold remains. |
+| tj-agents/personal #5 | `f8d00d79be792df1ec076f3482d9ada65c8edbf1` | PR #4 `Feature/PersonalWorkItemSkills`, `6d59214c199c6ecbd790b8beb185cfdfe591ec27` | Draft. Windows/Linux verify fail only at published skill-reference checks; hosts and policy pass. |
+| tj-agents/infonetica #12 | `53e3baf53de06ee8cb1d1b39e48045f132f29d5f` | PR #6 `Feature/WorkCommunications`, `9546906d5358317dd249db901a56e0c2ce9226fe` | Draft. CI job never started because GitHub rejected account payments/spending limits. |
+
+Review records were inspected directly, rather than inferred from PR prose or GitHub reviews
+(the GitHub review lists are empty). All four local work orders are complete and approved at
+the exact heads above. Their paths below are relative to each repository's Git common directory:
+
+- Work Items: `agent-workflow/reviews/672e74d4092632696a902e538617c70d52e3829681dfb5b82f29c459111fa489/work-order.md`.
+  The final incremental pass records actual native review and an independent valid workflow review,
+  all five retained repairs resolved, 128 tests, 39 canonical unittest cases, Ruff/mypy and
+  installed wheel plus five command checks on Windows/Linux (Linux Python 3.9 and 3.12).
+- Core: `agent-workflow/reviews/68bd5d4e0d2089f8993b39036be4db8b5bd785a8e1eaa4585c4bf8f8fb875f24/work-order.md`.
+- Personal: `agent-workflow/reviews/4364ba97b1029145f9fb7bab90f40de82b1b7acdd93876bfe762a788f5271090/work-order.md`.
+  Security review also covers the current head.
+- Infonetica: `agent-workflow/reviews/af02a5f4e278844e04a102b629dd81a0c71f89e5f2e19df821742114a29776e3/work-order.md`.
+  Security review also covers the current head.
+
+Fresh local checks: `pwsh -NoProfile -File .agents/sync-generated.ps1 -Check` passes
+with 89 generated files current; the repository has one paired AGENTS.md/CLAUDE.md with
+the exact pointer; `git diff --check` passes. Source is unchanged from the reviewed candidate.
+Do not rerun broad unchanged suites merely to replace retained successful evidence.
+Installed native-host/live cloud activation and coordinated consumer migration remain unverified.
+
+### Genuine blockers and next action
+
+1. **Personal publication dependency.** Run `39253470502` fails on both platforms for exactly
+   `engineering:write-feature`, `engineering:write-task` and `engineering:write-issue` absent
+   from published Core. Resolver: Tommy merges Core #298 under its existing manual hold,
+   then Core publication supplies those contracts. Resume condition: published Core contains
+   all three canonical skills. Next action: rerun Personal's failed CI jobs at its recorded
+   head, observe both platforms, then mark ready only after all checks pass. Preserve PR #3/#4/#5
+   stack order and reconcile the child after its parents land. Do not remove references or
+   exempt checks to hide the missing dependency.
+2. **Employer CI billing.** Run `39253473531`, job/check `118062775890`, has no step logs.
+   The failure annotation says recent account payments failed or the spending limit must
+   increase. Resolver: the GitHub billing/account owner (Tommy). Unblock action: restore
+   Actions billing/spending capacity. Resume condition: a rerun starts actual verification
+   steps. Next action: rerun the existing failed run and handle any observed source failures;
+   observe its exact-head result before marking ready. Preserve PR #6/#12 stack order and
+   Work/Core/shared publication dependencies. No billing settings were changed or blind
+   reruns submitted.
+3. **Merge boundary.** Work Items #20 and Core #298 are reviewed and green, awaiting Tommy's
+   merges. No automatic merge or inferred merge authorization is permitted. After authorized
+   parent merges/publication, reconcile descendant bases and validate the resulting heads.
+
+Status: delivery-gated, not complete. The four-PR handoff has reached concrete publication and
+billing boundaries; no source repair is supported by the observed failures. No CI run or
+background monitor remains active. Keep the existing code heads and independent review evidence.
