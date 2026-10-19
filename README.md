@@ -37,5 +37,5 @@ adapters and payloads. Implementation progress and remaining acceptance belong t
 ```text
 python -B .agents/sync_generated.py --root .
 python -B .agents/sync_generated.py --root . --check
-python -B -m unittest discover -s .agents/tests
+uv run pytest
 ```
