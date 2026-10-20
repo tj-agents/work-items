@@ -17,3 +17,11 @@ confirmed cause or explicit unknown, source owner, justified priority and resolu
 Use the selected provider's bug schema and commands, then verify the persisted identity and facts.
 Repeated reports add dated evidence to the same bug. Link a distinct intentional compromise through
 `work-items:write-debt` without duplicating the bug's repair. Retain final verification and history.
+
+```text
+Observation: invoice export raises ZeroDivisionError for an invoice with amount 0.
+Evidence: export invoice 318 with amount 0; request returns HTTP 500.
+Cause: unknown; owner: billing export; priority: high because monthly exports stop.
+Resolution: invoice 318 exports successfully and the zero-amount regression passes.
+Recording: reconcile the existing cause, persist once, then read back the bug and evidence.
+```

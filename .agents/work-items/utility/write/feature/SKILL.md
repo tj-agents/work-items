@@ -17,3 +17,11 @@ exclusions, acceptance criteria, owner, priority, dependencies and supporting li
 Use the selected provider's feature schema and commands and verify persisted identity and content.
 Append clarified requirements to the canonical feature. A substantial design plan stays in source
 and links to that feature. Keep delivery links and evidence current; close only after acceptance.
+
+```text
+Requested behavior: let a caller inspect the selected recording provider.
+Owner: Work Items; outcome: resolve the source primary and return its qualified provider.
+Acceptance: a feature checkout uses primary selection; missing selection fails visibly.
+Recording: reconcile the requested outcome, persist the feature and read back its identity.
+Authority: recording this feature alone does not start implementation.
+```

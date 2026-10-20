@@ -17,3 +17,11 @@ dependencies, source links and an observable completion condition using known fa
 Use the selected provider's task schema and commands and verify persisted identity and facts.
 Repeated requests update that task. Link any substantial implementation plan from the item and keep
 delivery/verification evidence current. Recording grants no authority to start execution.
+
+```text
+Work: migrate Core recording callers to the current Work Items writer skills.
+Owner: Core; dependency: Work Items publishes the six writer entries.
+Completion: no Core writer entry remains and all active callers resolve Work Items.
+Verification: generated host payloads and actual provider resolution pass.
+Recording: persist one task with its dependency and verify its saved completion condition.
+```

@@ -18,3 +18,11 @@ declarative prevention rule and give an observable condition proving it works; a
 is insufficient. Use the selected provider's mistake schema and commands and verify the persisted
 record. Repeated evidence updates that incident. Link an existing causal repair and retain the
 mistake as learning history. Resolve only after its own prevention condition passes.
+
+```text
+Observation: an agent retained Core writer aliases despite the loaded current-solution policy.
+Cause: the agent accepted an inherited compatibility design without applying that policy.
+Impact: consumers could keep using the superseded owner; repair owner: Core and Work Items.
+Prevention: remove Core entries, migrate callers and verify actual Work Items resolution.
+Recording: update the same incident with verification; close only after prevention passes.
+```
