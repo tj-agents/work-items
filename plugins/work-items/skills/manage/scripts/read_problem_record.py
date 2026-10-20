@@ -3,7 +3,7 @@ import json
 import sys
 
 from github_tracker import GitHub, Tracker, digest, issue_number, metadata, selection
-from records import ItemError
+from tj_work_items.records import ItemError
 
 
 def read(root, reference):
