@@ -12,7 +12,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "work-items/utility/manage/scrip
 sys.path.insert(0, str(SCRIPTS))
 import github_tracker as github
 import read_problem_record as reader
-import records
+from tj_work_items import records
 
 
 CONFIG = {"schema_version": 1, "backend": "github", "repository": "owner/project", "issue_types": {}}
@@ -44,7 +44,7 @@ class AdapterTests(unittest.TestCase):
             root = Path(directory)
             subprocess.run(["git", "init", "-q", str(root)], check=True)
             (root / github.CONFIG).write_text(json.dumps(CONFIG), encoding="utf-8")
-            with self.assertRaisesRegex(records.ItemError, "finish adopt"):
+            with self.assertRaisesRegex(records.ItemError, "provider selection is required"):
                 github.selection(root)
             for _ in range(2):
                 result = github.adopt(root, "owner/project", self.api())
@@ -125,10 +125,10 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(PROVIDER, github.adopt(root, "owner/project", self.api())["problem_provider"])
 
     def test_adoption_lock_is_released_when_the_process_exits(self):
-        from request_journal import adoption_lock
+        from github_tracker import adoption_lock
         with tempfile.TemporaryDirectory() as directory:
             subprocess.run(["git", "init", "-q", directory], check=True)
-            script = "import sys, os\nsys.path.insert(0, " + repr(str(SCRIPTS)) + ")\nfrom request_journal import adoption_lock\nwith adoption_lock(" + repr(directory) + "):\n os._exit(0)\n"
+            script = "import sys, os\nsys.path.insert(0, " + repr(str(SCRIPTS)) + ")\nfrom github_tracker import adoption_lock\nwith adoption_lock(" + repr(directory) + "):\n os._exit(0)\n"
             subprocess.run([sys.executable, "-B", "-c", script], check=True, timeout=15)
             with adoption_lock(directory):
                 pass

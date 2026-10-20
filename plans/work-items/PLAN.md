@@ -1,5 +1,10 @@
 # GitHub work-items implementation
 
+Current execution checkpoint: see **Shared runtime readiness - 20 October 2026** below.
+The earlier foundation/transport entries are retained history. This checkout owns shared-runtime
+PR #20 and the four-PR readiness assessment requested in the handoff; it does not take over the
+broader tracker/session implementation or consumer migration.
+
 Authorized by Tommy on 16 October 2026: implement the approved optional work-items package,
 shared integration, publication and personal repository adoption. Cross-repository decisions remain
 in docs/plans/problem-management/PLAN.md. This source plan owns package implementation only.
@@ -120,3 +125,159 @@ Independent workflow review found metadata-only kind changes could disagree with
 Correction validation: 32 tests cover stale body hashes, metadata kind disagreement, overlapping adoption rollback and process-exit lock release. Generation remains 53 files. Native and workflow/security correction review follows the committed checkpoint.
 
 Follow-up review: preserve arbitrary Markdown template examples by binding kind plus rendered text in a new optional managed metadata digest; old four-field metadata stays readable, while Core admission requires an explicit managed update to add the binding. Preflight a foreign provider before creating even runtime lock metadata, then recheck under the lock. Regression covers examples in summary/owner/links and legacy read/admission behavior.
+
+## Shared runtime readiness - 20 October 2026
+
+Authority: Tommy requested execution of
+`C:/Users/TommySeery/.claude/plans/core/handoff-work-items-runtime.md` from this checkout.
+Commit/push and PR preparation are authorized; Tommy alone merges. No new hooks, gates,
+launch-time plugin refresh, credential changes or consumer cutover belong to this slice.
+Owner: codex:01a15674-78c1-7703-8f6f-53e59ab10e57; registered work item
+`work-items/shared-runtime`, branch `Refactor/SharedWorkItemRuntime`.
+
+The broader source goal and its independent migration owner remain in
+`C:/Users/TommySeery/source/repos/tj-agents/core/.worktrees/Feature-TrackerAwareSkills/plans/tracker-aware-skills/GOAL.md`.
+That goal records the completed component assessment, accepted extraction boundaries, review
+repairs and installed Windows/Linux evidence. Carry those decisions forward. Its later backend
+decision selects GitHub for personal backlog content and preserves Azure for Infonetica; the
+historical personal Azure organization/setup gate does not authorize a new personal Azure rollout.
+
+Tommy's target owner for `session_store` and `work_item_sessions` is Work Items. The existing
+Core Machine SQLite store remains the current implementation. This readiness slice does not
+move it, create another database or claim that shared cloud-record mechanics deliver session storage.
+The older additive session-reference design and any package relocation need reconciliation in
+their own source slice before implementation.
+
+### Frozen deliveries and observed checks
+
+| Repository / PR | Exact head | Base | Observed state |
+| --- | --- | --- | --- |
+| tj-agents/work-items #20 | `9b2a2df1d8ff2a6c4968b39624cbdc683e33da07` | main `a69c5cd11e2f842631fdecdfa923d44fa9a494b1` | All seven reported checks pass; mergeable/CLEAN. Marked ready for review in this session; no merge. |
+| tj-agents/core #298 | `23e842c62feb9203d73cb94c75e945c42b3e6ac8` | main, observed `86dbae8a9fa199e451017ef4c51bcbae6a5587a9` | Required Windows/Linux/guard/aggregate checks pass at the head; regenerate skipped by workflow. REST reports mergeable/clean. Already ready; manual published-contract hold remains. |
+| tj-agents/personal #5 | `f8d00d79be792df1ec076f3482d9ada65c8edbf1` | PR #4 `Feature/PersonalWorkItemSkills`, `6d59214c199c6ecbd790b8beb185cfdfe591ec27` | Draft. Windows/Linux verify fail only at published skill-reference checks; hosts and policy pass. |
+| tj-agents/infonetica #12 | `53e3baf53de06ee8cb1d1b39e48045f132f29d5f` | PR #6 `Feature/WorkCommunications`, `9546906d5358317dd249db901a56e0c2ce9226fe` | Draft. CI job never started because GitHub rejected account payments/spending limits. |
+
+Review records were inspected directly, rather than inferred from PR prose or GitHub reviews
+(the GitHub review lists are empty). All four local work orders are complete and approved at
+the exact heads above. Their paths below are relative to each repository's Git common directory:
+
+- Work Items: `agent-workflow/reviews/672e74d4092632696a902e538617c70d52e3829681dfb5b82f29c459111fa489/work-order.md`.
+  The final incremental pass records actual native review and an independent valid workflow review,
+  all five retained repairs resolved, 128 tests, 39 canonical unittest cases, Ruff/mypy and
+  installed wheel plus five command checks on Windows/Linux (Linux Python 3.9 and 3.12).
+- Core: `agent-workflow/reviews/68bd5d4e0d2089f8993b39036be4db8b5bd785a8e1eaa4585c4bf8f8fb875f24/work-order.md`.
+- Personal: `agent-workflow/reviews/4364ba97b1029145f9fb7bab90f40de82b1b7acdd93876bfe762a788f5271090/work-order.md`.
+  Security review also covers the current head.
+- Infonetica: `agent-workflow/reviews/af02a5f4e278844e04a102b629dd81a0c71f89e5f2e19df821742114a29776e3/work-order.md`.
+  Security review also covers the current head.
+
+Fresh local checks: `pwsh -NoProfile -File .agents/sync-generated.ps1 -Check` passes
+with 89 generated files current; the repository has one paired AGENTS.md/CLAUDE.md with
+the exact pointer; `git diff --check` passes. Source is unchanged from the reviewed candidate.
+Do not rerun broad unchanged suites merely to replace retained successful evidence.
+Installed native-host/live cloud activation and coordinated consumer migration remain unverified.
+
+### Genuine blockers and next action
+
+1. **Personal publication dependency.** Run `39253470502` fails on both platforms for exactly
+   `engineering:write-feature`, `engineering:write-task` and `engineering:write-issue` absent
+   from published Core. Resolver: Tommy merges Core #298 under its existing manual hold,
+   then Core publication supplies those contracts. Resume condition: published Core contains
+   all three canonical skills. Next action: rerun Personal's failed CI jobs at its recorded
+   head, observe both platforms, then mark ready only after all checks pass. Preserve PR #3/#4/#5
+   stack order and reconcile the child after its parents land. Do not remove references or
+   exempt checks to hide the missing dependency.
+2. **Employer CI billing.** Run `39253473531`, job/check `118062775890`, has no step logs.
+   The failure annotation says recent account payments failed or the spending limit must
+   increase. Resolver: the GitHub billing/account owner (Tommy). Unblock action: restore
+   Actions billing/spending capacity. Resume condition: a rerun starts actual verification
+   steps. Next action: rerun the existing failed run and handle any observed source failures;
+   observe its exact-head result before marking ready. Preserve PR #6/#12 stack order and
+   Work/Core/shared publication dependencies. No billing settings were changed or blind
+   reruns submitted.
+3. **Merge boundary.** Work Items #20 and Core #298 are reviewed and green, awaiting Tommy's
+   merges. No automatic merge or inferred merge authorization is permitted. After authorized
+   parent merges/publication, reconcile descendant bases and validate the resulting heads.
+
+Status: delivery-gated, not complete. The four-PR handoff has reached concrete publication and
+billing boundaries; no source repair is supported by the observed failures. No CI run or
+background monitor remains active. Keep the existing code heads and independent review evidence.
+
+### Resume check - 20 October 2026, 09:05 UTC
+
+Tommy requested immediate continuation after the elapsed delay. All four remote source heads
+remain unchanged; Core #298 and Work Items #20 remain open and green. Published Core still
+returns 404 for the required write-task source. One authorized employer CI retry checked whether
+the account block had cleared: run 39253473531 attempt 2, job 118545531334, failed before any
+steps. Its fresh annotation again explicitly reports failed account payments/spending limits.
+No running check remains. The concrete next source-delivery action is merging/publishing Core
+#298 and Work Items #20; the handoff's explicit Tommy-only merge instruction still requires
+his decision before the agent may perform that action. Do not start another implementation,
+review wave or standards repair solely because these external boundaries persist.
+
+## Corrected ownership cutover - 20 October 2026
+
+Tommy explicitly rejected retaining Core-only record writers or file-backed compatibility paths.
+Repositories needing work-item recording must inject the current Work Items package. The previous
+ready assessment used the old engine-only split and is superseded. Core #298 and Work Items #20
+return to draft while their existing source slices are corrected; no merge is authorized.
+
+The personal current-solution policy was already loaded in this checkout. The causal mistake was
+accepting the inherited optional-provider/fallback design without applying that policy. No new
+compatibility exception, policy copy, hook or enforcement gate is needed. Repair the actual owners
+and callers; record the incident under the existing selected tracker with observable verification.
+
+Authorized implementation: Work Items owns all six existing record-writing skills, shared recording
+facts, templates and selected-provider persistence. Core retains engineering execution/admission as
+a consumer and calls the qualified Work Items skills. Personal, Work and Infonetica retain profile
+and credential policy while routing recording through Work Items. Delete the Core writer entries,
+aliases and fallback register-writing paths; update manifests, callers, tests and both host payloads
+in the same cutover. Keep existing remote record identities/receipts; preserving user data is not
+retaining superseded implementation. Do not relocate the SQLite session service in this slice.
+
+Delivery boundary: correct the existing owning PRs and dependent Work source; preserve employer
+policy and exact stack parents. Sync Core with its newer main before implementation, preserving
+prior dirty generated output and planning evidence. The writer source/manifest/caller migration is
+one atomic cross-package correction because splitting it would leave duplicate owners or dangling
+qualified references. Measure and qualify the final delta before updating independent review.
+
+Acceptance: no Core writer skill/redirect remains; every recording caller resolves the current
+Work Items owner; no package cycle; unavailable/missing selection fails visibly; repeat requests
+retain canonical identity; source generation and both host projections agree; focused behavior,
+packaging and Windows/Linux checks pass. Review and CI must cover each new head before readiness.
+
+Additional explicit authorization: audit all known personal repositories for actual personal policy
+adoption and native instruction delivery, then adopt wherever missing. Reuse the known personal
+repository inventory, exclude employer scopes, preserve unrelated edits and use the supported
+personal adoption/selection commands. Track fresh-host evidence separately from declarations.
+
+### Correction progress - 20 October 2026
+
+Work Items now owns write-issue, write-bug, write-mistake, write-debt, write-feature and write-task.
+Its provider resolver uses the primary checkout and refuses missing/malformed selection; there is
+no file-backed recording path. Old records/request-journal import facades are removed; actual
+callers import tj_work_items directly. Verification: 130 pytest tests, Ruff, strict mypy and
+generated-output check (109 files) pass. Core and profile migrations are still in progress.
+
+The personal audit counted 44 identities in 46 local primary clone roots, with one fully adopted
+primary and 43 missing identities; active feature checkouts can already carry unmerged adoption.
+Twenty-two inventory identities lack a clone in the MCP list and remain under local discovery.
+Preview results are in personal-adoption-audit.json. Existing compatibility aliases and unmanaged
+permission declarations need source reconciliation before those previews can pass; do not erase
+permissions or bypass adoption checks. Employer repositories remain excluded.
+
+Mistake recording uses stable request ID `core-writer-policy-20261020` and the saved
+policy-violation-facts.json input. The initial provider operation correctly failed because only
+the feature checkout had tracker selection. The supported adopt command has now installed the
+same explicit GitHub selection at the actual Work Items primary; it reported github_writes=false.
+The incident is distinct from #16 (process overhead). Creation and readback succeeded as
+https://github.com/tj-agents/work-items/issues/21; preserve that identity and add further evidence there.
+
+The independently authorized personal adoption rollout uses one isolated delivery branch per
+repository from its fetched remote default, preserving primary branches and unrelated dirty work.
+The Core/Work Items/Personal/Work/Infonetica migration owners retain their existing delivery branches.
+The other personal adoption changes are separate PRs, not added to the runtime PR. No merge is authorized.
+Two absent local inventory repositories are remotely archived (Concertable/concertable and
+tomjseery/windows-agents); keep those archived. The other twenty absent clones are active/writable
+and need supported source preparation rather than a false complete result. Remote metadata is
+saved in personal-uncloned-repositories.json. No cloud board/credential setup is part of this task.

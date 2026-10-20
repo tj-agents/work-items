@@ -44,6 +44,29 @@ class PrimarySelectionTests(unittest.TestCase):
         with patch.object(github, "GitHub", return_value=api):
             return github.execute(args)
 
+    def test_provider_selection_uses_primary_without_requiring_github_backend(self):
+        (self.primary / ".work-items.json").unlink()
+        self.select(self.feature)
+        declaration = self.primary / ".problem-records.json"
+        declaration.write_text(json.dumps({"schema_version": 1, "provider": "work:track"}), encoding="utf-8")
+        expected = {"root": str(self.primary.resolve()), "provider": "work:track"}
+        self.assertEqual(expected, github.provider_selection(self.nested))
+        self.assertEqual(expected, github.provider_selection(self.primary))
+
+    def test_provider_selection_rejects_missing_or_malformed_primary_without_fallback(self):
+        self.select(self.feature)
+        path = self.primary / ".problem-records.json"
+        for value in (None, "invalid JSON", "[]", '{"schema_version":true,"provider":"work:track"}',
+                      '{"schema_version":1,"provider":"manage"}',
+                      '{"schema_version":1,"provider":"work:track","fallback":"local"}'):
+            with self.subTest(value=value):
+                if value is None:
+                    path.unlink()
+                else:
+                    path.write_text(value, encoding="utf-8")
+                with self.assertRaises(records.ItemError):
+                    github.provider_selection(self.nested)
+
     def test_all_kinds_share_selection_receipts_and_lifecycle_across_worktrees(self):
         self.select(self.feature, {**CONFIG, "backend": "azure-devops"}, {"schema_version": 1, "provider": "work:track"})
         for kind in records.KINDS:

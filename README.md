@@ -1,13 +1,21 @@
 # Work items
 
-Optional deterministic work-item tooling for explicitly selected personal GitHub repositories.
-Each source repository stores its feature, task, bug, mistake and technical-debt issues in GitHub.
-Core keeps shared engineering behavior; employer Azure DevOps policy stays with its owner.
+Deterministic work-item tooling with a neutral runtime for explicitly selected tracker providers.
+The included GitHub lifecycle remains opt-in per source repository. Personal and employer providers
+reuse the runtime with their own credentials, field mappings and tracker policy.
+
+## Record work
+
+Work Items owns `write-issue`, `write-bug`, `write-mistake`, `write-debt`, `write-feature` and
+`write-task`. Core and profile packages consume these qualified skills. `write-issue` classifies
+once; a known kind uses its direct writer. All recording uses the explicitly selected provider and
+verified persisted content. A missing provider blocks recording without creating a Markdown register.
+Inject the current Work Items package in every repository that needs recording.
 
 ## Use
 
-The `work-items:manage` utility ships five JSON schemas and scripts for skeletons, validation,
-Markdown rendering and the GitHub lifecycle. Start with actual facts; an empty skeleton fails validation.
+The `work-items:manage` utility ships five JSON schemas, validation, Markdown rendering, the GitHub
+lifecycle, and the installable `tj_work_items` runtime. Start with actual facts; an empty skeleton fails validation.
 
 ```text
 python -B .agents/work-items/utility/manage/scripts/work_item.py template --kind feature
@@ -25,16 +33,28 @@ sync selection across computers. Installing the package alone does not adopt a t
 hash-checked updates, notes, links, verified close, explicit retry reconciliation and Core transport.
 Persist request IDs before writes. Keep local submission receipts after uncertain outcomes; on another
 computer or after receipt loss use `--reconcile-only`. Concurrent writers still require coordination.
-GitHub holds canonical issue data; local receipts protect retries and are not another backlog.
+GitHub holds canonical issue data for its lifecycle; local receipts protect retries and are not another backlog.
+The shared runtime supports provider-owned Azure operations without selecting or adopting GitHub.
+`azure_tracker.Tracker(root, context_config, client, journal, *, fields, lifecycle)` requires
+provider-owned managed-field and lifecycle mappings. `fields` contains exactly `repository`, `request`
+and `record`, mapped to distinct Azure reference names without collisions with the native fields the
+tracker uses. `lifecycle` contains exactly the supported `context_config["kinds"]` keys; each entry
+contains exactly `open` and `closed` nonempty native state names plus `inactive`, a sequence of nonempty
+state names. `closed` must belong to `inactive`, and `open` must not. The tracker copies the validated
+policy. For example, a provider may supply `{"task": {"open": "ToDo", "closed": "Done",
+"inactive": ("Done", "Canceled")}}` when task is its only supported kind. State actions and list
+filters use each kind's policy. Lists over 1,000 items fail explicitly so a partial queue cannot appear
+complete. Azure updates test the revision read immediately before the write; callers must coordinate an
+exclusive item owner across their own read, decision and write window.
 
 ## Source and checks
 
-Author the utility once under `.agents/work-items/utility/manage`; Template generates both host
+Author utilities once under `.agents/work-items/utility/`; Template generates both host
 adapters and payloads. Implementation progress and remaining acceptance belong to
 [the source plan](plans/work-items/PLAN.md).
 
 ```text
 python -B .agents/sync_generated.py --root .
 python -B .agents/sync_generated.py --root . --check
-python -B -m unittest discover -s .agents/tests
+uv run pytest
 ```

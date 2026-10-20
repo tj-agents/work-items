@@ -2,7 +2,11 @@ import argparse
 import json
 import sys
 
-from records import KINDS, ItemError, schema_for, skeleton, read_input, render, validate
+from runtime_bootstrap import bootstrap
+
+bootstrap()
+
+from tj_work_items.records import KINDS, ItemError, schema_for, skeleton, read_input, render, validate
 
 
 def parser():
@@ -14,12 +18,17 @@ def parser():
     for name in ("validate", "preview"):
         command = commands.add_parser(name)
         command.add_argument("--input", required=True, help="UTF-8 JSON path, or - for stdin")
+    provider = commands.add_parser("provider")
+    provider.add_argument("--root", required=True)
     from github_tracker import add_commands
     add_commands(commands)
     return result
 
 
 def run(arguments):
+    if arguments.command == "provider":
+        from github_tracker import provider_selection
+        return provider_selection(arguments.root)
     if arguments.command == "schema":
         return schema_for(arguments.kind)
     if arguments.command == "template":

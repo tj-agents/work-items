@@ -1,4 +1,5 @@
 import hashlib
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -6,7 +7,12 @@ import re
 import subprocess
 from urllib.parse import urlparse
 
-from records import ItemError, KINDS, read_input, render
+from runtime_bootstrap import bootstrap
+
+bootstrap()
+
+from tj_work_items.records import ItemError, KINDS, read_input, render
+from tj_work_items.request_journal import RequestJournal
 
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
@@ -14,6 +20,44 @@ REQUEST = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{7,127}")
 MARKER = re.compile(r"\n<!-- work-item:v1 (.+) -->\n?\Z")
 COMMENT = re.compile(r"\n<!-- work-item-comment:v1 (.+) -->\n?\Z")
 CONFIG = ".work-items.json"
+
+
+@contextmanager
+def adoption_lock(root):
+    root = Path(root).resolve()
+    directory = RequestJournal(root).root.parent / "adoptions"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / (
+        hashlib.sha256(os.path.normcase(str(root)).encode("utf-8")).hexdigest()
+        + ".lock"
+    )
+    with path.open("a+b") as handle:
+        if handle.seek(0, 2) == 0:
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            raise ItemError(
+                "repository adoption is already running; retry after its "
+                "writer finishes"
+            ) from error
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 class APIError(ItemError):
@@ -107,6 +151,23 @@ def source_repository(root):
     return repo
 
 
+def provider_selection(root):
+    root = source_primary(root)
+    path = root / ".problem-records.json"
+    if path.is_symlink():
+        raise ItemError("provider selection must be a regular repository file")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as error:
+        raise ItemError("explicit .problem-records.json provider selection is required") from error
+    if (not isinstance(value, dict) or set(value) != {"schema_version", "provider"}
+            or type(value["schema_version"]) is not int or value["schema_version"] != 1
+            or not isinstance(value["provider"], str)
+            or not re.fullmatch(r"[a-z][a-z0-9-]*:[a-z][a-z0-9-]*", value["provider"])):
+        raise ItemError("invalid qualified provider selection")
+    return {"root": str(root), "provider": value["provider"]}
+
+
 def selection(root, require_provider=True):
     root = source_primary(root)
     path = root / CONFIG
@@ -126,14 +187,8 @@ def selection(root, require_provider=True):
     types = config["issue_types"]
     if not isinstance(types, dict) or set(types) - set(KINDS) or any(not isinstance(v, str) or not v.strip() for v in types.values()):
         raise ItemError("invalid issue type mapping")
-    if require_provider:
-        provider_path = Path(root).resolve() / ".problem-records.json"
-        try:
-            provider = json.loads(provider_path.read_text(encoding="utf-8-sig"))
-        except (OSError, ValueError) as error:
-            raise ItemError("explicit Core provider selection is required; finish adopt before tracker operations") from error
-        if provider_path.is_symlink() or not isinstance(provider, dict) or set(provider) != {"schema_version", "provider"} or type(provider["schema_version"]) is not int or provider != {"schema_version": 1, "provider": "work-items:manage"}:
-            raise ItemError("Core problem-record provider differs; reconcile before tracker operations")
+    if require_provider and provider_selection(root)["provider"] != "work-items:manage":
+        raise ItemError("problem-record provider differs; reconcile before tracker operations")
     return config
 
 
@@ -340,7 +395,6 @@ class Tracker:
 def adopt(root, repository, api):
     root = source_primary(root)
     check_provider(root)
-    from request_journal import adoption_lock
     with adoption_lock(root):
         return adopt_locked(root, repository, api)
 
@@ -432,7 +486,6 @@ def execute(args):
     api = GitHub()
     if args.command == "adopt":
         return adopt(args.root, args.repository, api)
-    from request_journal import RequestJournal
     tracker = Tracker(selection(args.root), api, RequestJournal(args.root))
     if args.command == "create":
         return tracker.create(read_input(args.input), args.request_id, args.reconcile_only)

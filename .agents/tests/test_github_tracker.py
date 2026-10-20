@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / ".agents/work-items/utility/manage/scripts"
 sys.path.insert(0, str(SCRIPTS))
 import github_tracker as github
-import records
-from request_journal import RequestJournal
+from tj_work_items import records
+from tj_work_items.request_journal import RequestJournal
 
 
 CONFIG = {"schema_version": 1, "backend": "github", "repository": "owner/project", "issue_types": {}}
@@ -157,7 +157,7 @@ class TrackerTests(unittest.TestCase):
             text.write_text("Observed tests passed", encoding="utf-8")
             args = argparse.Namespace(command="close", root=directory, item="owner/project#1",
                                       request_id="close-0001", text_file=str(text))
-            with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value=CONFIG), patch("request_journal.RequestJournal", return_value=None):
+            with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value=CONFIG), patch.object(github, "RequestJournal", return_value=None):
                 result = github.execute(args)
                 self.assertEqual("closed", result["state"])
                 self.assertIn("Observed tests passed", self.api.comments[0]["body"])

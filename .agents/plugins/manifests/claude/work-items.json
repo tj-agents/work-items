@@ -1,11 +1,13 @@
 {
   "name": "work-items",
   "displayName": "Work items",
-  "description": "Optional GitHub work-item templates and deterministic tracking tools.",
+  "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
   "author": {
     "name": "Tommy Seery"
   },
   "repository": "https://github.com/tj-agents/work-items",
   "skills": "./skills/",
-  "keywords": ["work-items"]
+  "keywords": [
+    "work-items"
+  ]
 }
