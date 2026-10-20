@@ -4,6 +4,14 @@ Deterministic work-item tooling with a neutral runtime for explicitly selected t
 The included GitHub lifecycle remains opt-in per source repository. Personal and employer providers
 reuse the runtime with their own credentials, field mappings and tracker policy.
 
+## Record work
+
+Work Items owns `write-issue`, `write-bug`, `write-mistake`, `write-debt`, `write-feature` and
+`write-task`. Core and profile packages consume these qualified skills. `write-issue` classifies
+once; a known kind uses its direct writer. All recording uses the explicitly selected provider and
+verified persisted content. A missing provider blocks recording without creating a Markdown register.
+Inject the current Work Items package in every repository that needs recording.
+
 ## Use
 
 The `work-items:manage` utility ships five JSON schemas, validation, Markdown rendering, the GitHub
@@ -41,7 +49,7 @@ exclusive item owner across their own read, decision and write window.
 
 ## Source and checks
 
-Author the utility once under `.agents/work-items/utility/manage`; Template generates both host
+Author utilities once under `.agents/work-items/utility/`; Template generates both host
 adapters and payloads. Implementation progress and remaining acceptance belong to
 [the source plan](plans/work-items/PLAN.md).
 

@@ -8,7 +8,7 @@
     {
       "name": "work-items",
       "source": "./plugins/work-items",
-      "description": "Deterministic work-item tools and neutral provider runtime.",
+      "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
       "category": "Productivity",
       "keywords": [
         "work-items"

@@ -1,11 +1,13 @@
 {
   "name": "work-items",
   "displayName": "Work items",
-  "description": "Deterministic work-item tools and neutral provider runtime.",
+  "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
   "author": {
     "name": "Tommy Seery"
   },
   "repository": "https://github.com/tj-agents/work-items",
   "skills": "./skills/",
-  "keywords": ["work-items"]
+  "keywords": [
+    "work-items"
+  ]
 }
