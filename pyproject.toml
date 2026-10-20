@@ -22,8 +22,6 @@ tj-work-items = { path = ".agents/work-items/utility/manage/runtime", editable =
 include = [
   ".agents/work-items/utility/manage/runtime/src/**/*.py",
   ".agents/work-items/utility/manage/scripts/runtime_bootstrap.py",
-  ".agents/work-items/utility/manage/scripts/records.py",
-  ".agents/work-items/utility/manage/scripts/request_journal.py",
   ".agents/tests/test_azure_tracker.py",
   ".agents/tests/test_request_journal.py",
 ]
@@ -34,8 +32,6 @@ select = ["E", "W", "F", "I", "N", "UP", "B", "A", "BLE", "C4", "SIM", "PTH", "P
 
 [tool.ruff.lint.per-file-ignores]
 ".agents/work-items/utility/manage/runtime/src/tj_work_items/request_journal.py" = ["UP007", "UP045"]
-".agents/work-items/utility/manage/scripts/records.py" = ["E402"]
-".agents/work-items/utility/manage/scripts/request_journal.py" = ["E402"]
 
 [tool.mypy]
 strict = true

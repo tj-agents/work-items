@@ -7,6 +7,3 @@ def bootstrap() -> None:
     value = str(runtime)
     if value not in sys.path:
         sys.path.insert(0, value)
-
-
-bootstrap()

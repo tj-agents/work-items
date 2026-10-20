@@ -16,11 +16,16 @@ use `python3` on Linux/macOS and `python` on Windows. Do not guess another skill
 GitHub lifecycle commands additionally require an authenticated GitHub CLI.
 
 ```text
+python -B <skill-directory>/scripts/work_item.py provider --root .
 python -B <skill-directory>/scripts/work_item.py template --kind bug
 python -B <skill-directory>/scripts/work_item.py schema --kind feature
 python -B <skill-directory>/scripts/work_item.py validate --input facts.json
 python -B <skill-directory>/scripts/work_item.py preview --input facts.json
 ```
+
+`provider` returns the source primary checkout and its explicitly declared qualified provider skill.
+It requires no tracker credentials and never adopts or chooses a provider. Missing or malformed
+primary declarations fail even if a feature checkout contains a valid declaration.
 
 `--input -` reads stdin. Output is compact JSON; preview returns `title` and `body`.
 The five schemas under `runtime/src/tj_work_items/templates/` generate both the input skeleton and Markdown sections.
@@ -49,7 +54,7 @@ selection files apply. A missing primary or invalid primary selection fails visi
 feature worktree has its own declarations. Adoption writes only in the primary checkout.
 Local schema, template, validation and preview commands remain usable outside Git.
 
-Adoption writes `.work-items.json` and Core's `.problem-records.json` provider declaration together,
+Adoption writes `.work-items.json` and the `.problem-records.json` provider declaration together,
 refusing another existing provider before either write. It verifies origin and source issue availability, and records
 available native issue types. Commit that selection to sync it across computers. Where native types
 are unavailable, the deterministic body kind remains explicit; no organization types are modified.

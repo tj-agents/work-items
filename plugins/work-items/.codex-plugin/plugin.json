@@ -1,6 +1,6 @@
 {
   "name": "work-items",
-  "description": "Deterministic work-item tools and neutral provider runtime.",
+  "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
   "author": {
     "name": "Tommy Seery"
   },

@@ -3,7 +3,13 @@
   "dependencies": [],
   "profiles": {
     "core": [
-      "manage"
+      "manage",
+      "write-bug",
+      "write-debt",
+      "write-feature",
+      "write-issue",
+      "write-mistake",
+      "write-task"
     ]
   },
   "compatibilitySkillAliases": {},
@@ -18,6 +24,102 @@
       "requires": [
         "python>=3.9",
         "git; authenticated gh for GitHub lifecycle operations"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-bug",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-debt",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-feature",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-issue",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-mistake",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
+      ],
+      "provenance": [
+        "house"
+      ]
+    },
+    {
+      "name": "write-task",
+      "kind": "utility",
+      "profile": "core",
+      "applicability": [
+        "repositories recording work through an explicitly selected provider"
+      ],
+      "requires": [
+        "python>=3.9",
+        "git",
+        "work-items"
       ],
       "provenance": [
         "house"
