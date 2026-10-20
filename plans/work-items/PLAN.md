@@ -202,3 +202,82 @@ Installed native-host/live cloud activation and coordinated consumer migration r
 Status: delivery-gated, not complete. The four-PR handoff has reached concrete publication and
 billing boundaries; no source repair is supported by the observed failures. No CI run or
 background monitor remains active. Keep the existing code heads and independent review evidence.
+
+### Resume check - 20 October 2026, 09:05 UTC
+
+Tommy requested immediate continuation after the elapsed delay. All four remote source heads
+remain unchanged; Core #298 and Work Items #20 remain open and green. Published Core still
+returns 404 for the required write-task source. One authorized employer CI retry checked whether
+the account block had cleared: run 39253473531 attempt 2, job 118545531334, failed before any
+steps. Its fresh annotation again explicitly reports failed account payments/spending limits.
+No running check remains. The concrete next source-delivery action is merging/publishing Core
+#298 and Work Items #20; the handoff's explicit Tommy-only merge instruction still requires
+his decision before the agent may perform that action. Do not start another implementation,
+review wave or standards repair solely because these external boundaries persist.
+
+## Corrected ownership cutover - 20 October 2026
+
+Tommy explicitly rejected retaining Core-only record writers or file-backed compatibility paths.
+Repositories needing work-item recording must inject the current Work Items package. The previous
+ready assessment used the old engine-only split and is superseded. Core #298 and Work Items #20
+return to draft while their existing source slices are corrected; no merge is authorized.
+
+The personal current-solution policy was already loaded in this checkout. The causal mistake was
+accepting the inherited optional-provider/fallback design without applying that policy. No new
+compatibility exception, policy copy, hook or enforcement gate is needed. Repair the actual owners
+and callers; record the incident under the existing selected tracker with observable verification.
+
+Authorized implementation: Work Items owns all six existing record-writing skills, shared recording
+facts, templates and selected-provider persistence. Core retains engineering execution/admission as
+a consumer and calls the qualified Work Items skills. Personal, Work and Infonetica retain profile
+and credential policy while routing recording through Work Items. Delete the Core writer entries,
+aliases and fallback register-writing paths; update manifests, callers, tests and both host payloads
+in the same cutover. Keep existing remote record identities/receipts; preserving user data is not
+retaining superseded implementation. Do not relocate the SQLite session service in this slice.
+
+Delivery boundary: correct the existing owning PRs and dependent Work source; preserve employer
+policy and exact stack parents. Sync Core with its newer main before implementation, preserving
+prior dirty generated output and planning evidence. The writer source/manifest/caller migration is
+one atomic cross-package correction because splitting it would leave duplicate owners or dangling
+qualified references. Measure and qualify the final delta before updating independent review.
+
+Acceptance: no Core writer skill/redirect remains; every recording caller resolves the current
+Work Items owner; no package cycle; unavailable/missing selection fails visibly; repeat requests
+retain canonical identity; source generation and both host projections agree; focused behavior,
+packaging and Windows/Linux checks pass. Review and CI must cover each new head before readiness.
+
+Additional explicit authorization: audit all known personal repositories for actual personal policy
+adoption and native instruction delivery, then adopt wherever missing. Reuse the known personal
+repository inventory, exclude employer scopes, preserve unrelated edits and use the supported
+personal adoption/selection commands. Track fresh-host evidence separately from declarations.
+
+### Correction progress - 20 October 2026
+
+Work Items now owns write-issue, write-bug, write-mistake, write-debt, write-feature and write-task.
+Its provider resolver uses the primary checkout and refuses missing/malformed selection; there is
+no file-backed recording path. Old records/request-journal import facades are removed; actual
+callers import tj_work_items directly. Verification: 130 pytest tests, Ruff, strict mypy and
+generated-output check (109 files) pass. Core and profile migrations are still in progress.
+
+The personal audit counted 44 identities in 46 local primary clone roots, with one fully adopted
+primary and 43 missing identities; active feature checkouts can already carry unmerged adoption.
+Twenty-two inventory identities lack a clone in the MCP list and remain under local discovery.
+Preview results are in personal-adoption-audit.json. Existing compatibility aliases and unmanaged
+permission declarations need source reconciliation before those previews can pass; do not erase
+permissions or bypass adoption checks. Employer repositories remain excluded.
+
+Mistake recording uses stable request ID `core-writer-policy-20261020` and the saved
+policy-violation-facts.json input. The initial provider operation correctly failed because only
+the feature checkout had tracker selection. The supported adopt command has now installed the
+same explicit GitHub selection at the actual Work Items primary; it reported github_writes=false.
+The incident is distinct from #16 (process overhead). Creation and readback succeeded as
+https://github.com/tj-agents/work-items/issues/21; preserve that identity and add further evidence there.
+
+The independently authorized personal adoption rollout uses one isolated delivery branch per
+repository from its fetched remote default, preserving primary branches and unrelated dirty work.
+The Core/Work Items/Personal/Work/Infonetica migration owners retain their existing delivery branches.
+The other personal adoption changes are separate PRs, not added to the runtime PR. No merge is authorized.
+Two absent local inventory repositories are remotely archived (Concertable/concertable and
+tomjseery/windows-agents); keep those archived. The other twenty absent clones are active/writable
+and need supported source preparation rather than a false complete result. Remote metadata is
+saved in personal-uncloned-repositories.json. No cloud board/credential setup is part of this task.
