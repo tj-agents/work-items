@@ -26,3 +26,10 @@ Delegate once. Ask only when missing facts leave materially different outcomes. 
 creates a separate debt item only for a distinct compromise with its own exit condition. Preserve
 identity, evidence and repair ownership. Use the specific writer for persistence; do not submit a
 second record or start implementation from this classification step.
+
+```text
+Input: "The invoice export crashes when the amount is zero."
+Classification: faulty software behavior.
+Next owner: work-items:write-bug; reconcile existing export defects before persistence.
+Result: one verified bug identity; implementation remains a separate authorized action.
+```

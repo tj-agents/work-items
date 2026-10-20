@@ -18,3 +18,11 @@ requires evidence that it is suitable; unrelated scope explains deferral but doe
 Use the selected provider's debt schema and persistence/verified-closure commands. Faulty behavior
 belongs in `work-items:write-bug`; link its repair when the debt describes a distinct deferral.
 Separate independently repaired owning areas retain linked items. Preserve canonical history.
+
+```text
+Decision: defer paging beyond 1,000 backlog records for the current release.
+Reason: the current provider endpoint has no implemented continuation path.
+Impact: large queues are visibly refused; owner: tracker transport; state: deferred.
+Exit condition: fetch every page and verify no record is omitted in a queue above 1,000.
+Recording: link the release decision and keep this compromise distinct from an observed bug.
+```
