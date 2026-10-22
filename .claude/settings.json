@@ -3,12 +3,14 @@
     "allow": []
   },
   "enabledPlugins": {
+    "agent-store@tj-agents": true,
     "base@tj-agents": true,
     "engineering@tj-agents": true,
     "kit@tj-agents": true,
     "machine@tj-agents": true,
     "personal@tj-agents": true,
-    "template@tj-agents": true
+    "template@tj-agents": true,
+    "workflow@tj-agents": true
   },
   "extraKnownMarketplaces": {
     "tj-agents": {
