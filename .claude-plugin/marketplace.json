@@ -1,5 +1,5 @@
 {
-  "name": "work-items-agents",
+  "name": "tj-agents",
   "description": "Optional GitHub work-item templates and deterministic tracking tools.",
   "owner": {
     "name": "Tommy Seery"

@@ -1,23 +1,19 @@
 {
   "schema_version": 1,
-  "plugin": "work-items-agents/work-items",
+  "plugin": "tj-agents/work-items",
   "source_roots": [
     ".agents/work-items"
   ],
   "requires": {
     "marketplaces": [
       {
-        "id": "work-items-agents",
-        "repository": "tj-agents/work-items"
-      },
-      {
-        "id": "base-agents",
-        "repository": "tj-agents/core"
+        "id": "tj-agents",
+        "repository": "tj-agents/marketplace"
       }
     ],
     "plugins": [
-      "work-items-agents/work-items",
-      "base-agents/base"
+      "tj-agents/work-items",
+      "tj-agents/base"
     ],
     "hooks": [],
     "permissions": {
