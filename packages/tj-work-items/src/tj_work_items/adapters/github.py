@@ -168,7 +168,9 @@ class GitHubTracker:
         )
 
     def _kind(self, issue: Mapping[str, Any]) -> str | None:
-        labels = [label["name"].casefold() for label in (issue.get("labels") or {}).get("nodes", [])]
+        labels: list[str] = [
+            label["name"].casefold() for label in (issue.get("labels") or {}).get("nodes", [])
+        ]
         for label in labels:
             if label in KIND_LABELS:
                 return label
