@@ -86,7 +86,7 @@ class GitHubTracker:
         if parts.hostname != "github.com" or len(segments) != 4:
             return None
         owner, name, kind, number = segments
-        if kind not in {"issues", "pull"} or not number.isdigit():
+        if kind != "issues" or not number.isdigit():
             return None
         return ItemRef("github", f"github.com/{owner}/{name}".casefold(), number)
 

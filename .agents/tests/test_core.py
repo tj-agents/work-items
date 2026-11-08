@@ -103,3 +103,8 @@ def test_ambiguous_profiles_are_refused() -> None:
 def test_item_ref_round_trips_its_text_form() -> None:
     ref = ItemRef("azure-devops", "dev.azure.com/contoso", "7")
     assert parse_ref(str(ref), None, PARSERS) == ref
+
+
+def test_pull_request_urls_are_not_work_items() -> None:
+    with pytest.raises(ValueError, match="no installed tracker adapter"):
+        parse_ref("https://github.com/acme/widget/pull/461", DEFAULT, PARSERS)
