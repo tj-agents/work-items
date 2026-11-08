@@ -13,6 +13,7 @@ from tj_work_items.tracker import ConfigError, Item, Repository, TrackerError, k
 
 Runner = Callable[[list[str], str | None], str]
 
+KIND_LABELS = ("bug", "mistake", "debt", "feature", "task", "story")
 STATUS_NAMES: dict[State, tuple[str, ...]] = {
     State.TO_DO: ("Todo", "To Do", "Backlog", "Ready"),
     State.IN_PROGRESS: ("In Progress",),
@@ -22,7 +23,8 @@ STATUS_NAMES: dict[State, tuple[str, ...]] = {
 }
 
 ISSUE_FIELDS = (
-    "id number title url state body issueType{name} assignees(first:20){nodes{login}} "
+    "id number title url state body issueType{name} labels(first:20){nodes{name}} "
+    "assignees(first:20){nodes{login}} "
     "repository{nameWithOwner} projectItems(first:20){nodes{id project{id title} "
     "status:fieldValueByName(name:$field){... on ProjectV2ItemFieldSingleSelectValue{name}}}}"
 )
@@ -160,10 +162,17 @@ class GitHubTracker:
             url=issue["url"],
             native_state=statuses[0] if statuses else issue["state"].lower(),
             state=state,
-            kind=kind_for((issue.get("issueType") or {}).get("name"), self.kinds),
+            kind=self._kind(issue),
             assignees=tuple(node["login"] for node in issue["assignees"]["nodes"]),
             body=issue.get("body") or "",
         )
+
+    def _kind(self, issue: Mapping[str, Any]) -> str | None:
+        labels = [label["name"].casefold() for label in (issue.get("labels") or {}).get("nodes", [])]
+        for label in labels:
+            if label in KIND_LABELS:
+                return label
+        return kind_for((issue.get("issueType") or {}).get("name"), self.kinds)
 
     def _names(self, state: State) -> tuple[str, ...]:
         return (self.states[state],) if state in self.states else STATUS_NAMES[state]
