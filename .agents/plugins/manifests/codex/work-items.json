@@ -1,6 +1,6 @@
 {
   "name": "work-items",
-  "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
+  "description": "One work-item tracker interface and the tj item CLI for GitHub, Azure DevOps and installed adapters.",
   "author": {
     "name": "Tommy Seery"
   },
@@ -11,8 +11,8 @@
   ],
   "interface": {
     "displayName": "Work items",
-    "shortDescription": "Deterministic work-item tools and neutral provider runtime.",
-    "longDescription": "Deterministic work-item tools and neutral provider runtime.",
+    "shortDescription": "Read and move work items in any tracker with tj item.",
+    "longDescription": "One work-item tracker interface and the tj item CLI for GitHub, Azure DevOps and installed adapters.",
     "developerName": "Tommy Seery",
     "category": "Productivity",
     "capabilities": [],

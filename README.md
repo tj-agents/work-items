@@ -1,60 +1,50 @@
 # Work items
 
-Deterministic work-item tooling with a neutral runtime for explicitly selected tracker providers.
-The included GitHub lifecycle remains opt-in per source repository. Personal and employer providers
-reuse the runtime with their own credentials, field mappings and tracker policy.
-
-## Record work
-
-Work Items owns `write-issue`, `write-bug`, `write-mistake`, `write-debt`, `write-feature` and
-`write-task`. Core and profile packages consume these qualified skills. `write-issue` classifies
-once; a known kind uses its direct writer. All recording uses the explicitly selected provider and
-verified persisted content. A missing provider blocks recording without creating a Markdown register.
-Inject the current Work Items package in every repository that needs recording.
-
-## Use
-
-The `work-items:manage` utility ships five JSON schemas, validation, Markdown rendering, the GitHub
-lifecycle, and the installable `tj_work_items` runtime. Start with actual facts; an empty skeleton fails validation.
+One work-item tracker interface, its adapters and the `tj item` CLI, published as the `tj_work_items` package
+from `packages/tj-work-items`.
 
 ```text
-python -B .agents/work-items/utility/manage/scripts/work_item.py template --kind feature
-python -B .agents/work-items/utility/manage/scripts/work_item.py preview --input facts.json
-python -B .agents/work-items/utility/manage/scripts/work_item.py adopt --root <source-repository> --repository owner/project
-python -B .agents/work-items/utility/manage/scripts/work_item.py create --root <source-repository> --input facts.json --request-id UNIQUE-STABLE-ID
+tj item resolve <ref> [--body]          tj item comment <ref> --body-file <file>
+tj item mine                            tj item link <ref> <pull-request-url>
+tj item progress <ref> --state "In Review"
 ```
 
-Use the installed skill directory when running outside this source checkout. Python 3.9+, Git,
-the authenticated GitHub CLI and repository access are required. Adoption verifies origin and
-coordinates `.work-items.json` with Core's `.problem-records.json`. Commit those declarations to
-sync selection across computers. Installing the package alone does not adopt a tracker.
+`tj` dispatches `tj item` to the `tj-item` console script. Install it with
+`uv tool install --from "git+https://github.com/tj-agents/work-items#subdirectory=packages/tj-work-items" tj-work-items`,
+adding `--with <profile package>` for each employer profile the machine uses.
 
-[The canonical utility](.agents/work-items/utility/manage/SKILL.md) documents current reads,
-hash-checked updates, notes, links, verified close, explicit retry reconciliation and Core transport.
-Persist request IDs before writes. Keep local submission receipts after uncertain outcomes; on another
-computer or after receipt loss use `--reconcile-only`. Concurrent writers still require coordination.
-GitHub holds canonical issue data for its lifecycle; local receipts protect retries and are not another backlog.
-The shared runtime supports provider-owned Azure operations without selecting or adopting GitHub.
-`azure_tracker.Tracker(root, context_config, client, journal, *, fields, lifecycle)` requires
-provider-owned managed-field and lifecycle mappings. `fields` contains exactly `repository`, `request`
-and `record`, mapped to distinct Azure reference names without collisions with the native fields the
-tracker uses. `lifecycle` contains exactly the supported `context_config["kinds"]` keys; each entry
-contains exactly `open` and `closed` nonempty native state names plus `inactive`, a sequence of nonempty
-state names. `closed` must belong to `inactive`, and `open` must not. The tracker copies the validated
-policy. For example, a provider may supply `{"task": {"open": "ToDo", "closed": "Done",
-"inactive": ("Done", "Canceled")}}` when task is its only supported kind. State actions and list
-filters use each kind's policy. Lists over 1,000 items fail explicitly so a partial queue cannot appear
-complete. Azure updates test the revision read immediately before the write; callers must coordinate an
-exclusive item owner across their own read, decision and write window.
+## Interface
 
-## Source and checks
+`Tracker`: `resolve(ref)`, `list_mine()`, `transition(ref, state)`, `comment(ref, text)`, `link_artifact(ref, url)`.
+Canonical states: To Do, In Progress, Blocked, In Review, Done. Refs are `provider:scope:id`; a bare `461` or `#461`
+takes the active profile's tracker and scope, and each adapter parses its own URLs.
 
-Author utilities once under `.agents/work-items/utility/`; Template generates both host
-adapters and payloads. Implementation progress and remaining acceptance belong to
-[the source plan](plans/work-items/PLAN.md).
+| Adapter | Transport | State |
+|---|---|---|
+| `github` | `gh api` | Projects v2 Status on every project the issue is in; Done closes the issue |
+| `azure-devops` | REST 7.1, `az` token or `AZURE_DEVOPS_EXT_PAT` | profile map, else the ADO state category; walks intermediate states when a direct move is rejected |
+
+Another tracker is one adapter class registered under the `tj_work_items.trackers` entry-point group.
+
+## Profiles
+
+A profile is configuration only: a package registering a mapping under the `tj_work_items.profiles` entry-point group.
+
+```python
+PROFILE = {
+    "name": "employer",
+    "tracker": "azure-devops",
+    "match": {"remote_host": "github.com", "remote": "^employer/"},
+    "settings": {"organization": "employer", "project": "Product", "states": {"In Review": "Resolved"}},
+}
+```
+
+The repository origin selects the profile; a GitHub origin no profile matches uses the GitHub adapter with defaults.
+`--profile <name>` overrides.
+
+## Checks
 
 ```text
-python -B .agents/sync_generated.py --root .
-python -B .agents/sync_generated.py --root . --check
-uv run pytest
+uv run ruff format --check && uv run ruff check && uv run mypy && uv run pytest
+pwsh .agents/sync-generated.ps1 -Check
 ```

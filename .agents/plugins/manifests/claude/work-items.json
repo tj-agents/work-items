@@ -1,7 +1,7 @@
 {
   "name": "work-items",
   "displayName": "Work items",
-  "description": "Work-item recording skills, explicit providers and the shared provider runtime.",
+  "description": "One work-item tracker interface and the tj item CLI for GitHub, Azure DevOps and installed adapters.",
   "author": {
     "name": "Tommy Seery"
   },

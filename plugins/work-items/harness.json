@@ -18,89 +18,30 @@
     "hooks": [],
     "permissions": {
       "claude_allow": [
-        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
-        "Bash(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
-        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
-        "Bash(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
-        "Bash(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
-        "PowerShell(python -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py:*)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py:*)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py:*)",
-        "PowerShell(python3 -B ${PLUGIN_ROOT}/skills/manage/scripts/work_item.py:*)"
+        "Bash(tj item:*)",
+        "Bash(tj-item:*)",
+        "PowerShell(tj item:*)",
+        "PowerShell(tj-item:*)"
       ],
       "codex_prefix_rules": [
         {
           "pattern": [
-            [
-              "python",
-              "python.exe",
-              "python3",
-              "py"
-            ],
-            "-B",
-            [
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py",
-              "${PLUGIN_ROOT}/skills/manage/scripts/work_item.py"
-            ]
+            "tj",
+            "item"
           ],
-          "justification": "The tracker resolves the source primary checkout and validates its explicit selection, origin and work-item facts before GitHub issue operations; preview and schemas remain local.",
+          "justification": "Read and update work items in the repository's selected tracker.",
           "match": [
             [
-              "python",
-              "-B",
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py"
-            ],
-            [
-              "python",
-              "-B",
-              "${PLUGIN_ROOT}/skills/manage/scripts/work_item.py"
+              "tj",
+              "item",
+              "resolve",
+              "461"
             ]
           ],
           "not_match": [
             [
-              "python",
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/work_item.py"
-            ]
-          ]
-        },
-        {
-          "pattern": [
-            [
-              "python",
-              "python.exe",
-              "python3",
-              "py"
-            ],
-            "-B",
-            [
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py",
-              "${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py"
-            ]
-          ],
-          "justification": "Read one current canonical problem record using the source primary checkout's explicit tracker selection for Core admission; this reader performs no GitHub writes.",
-          "match": [
-            [
-              "python",
-              "-B",
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py"
-            ],
-            [
-              "python",
-              "-B",
-              "${PLUGIN_ROOT}/skills/manage/scripts/read_problem_record.py"
-            ]
-          ],
-          "not_match": [
-            [
-              "python",
-              "${PLUGIN_ROOT}/.agents/work-items/utility/manage/scripts/read_problem_record.py"
+              "tj",
+              "run"
             ]
           ]
         }
