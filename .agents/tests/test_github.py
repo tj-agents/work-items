@@ -20,6 +20,7 @@ class FakeGitHub:
         self.options = options
         self.comments: list[str] = []
         self.labels: list[str] = []
+        self.linked = 0
         self.calls: list[list[str]] = []
 
     def issue(self) -> dict[str, Any]:
@@ -51,6 +52,13 @@ class FakeGitHub:
         body = json.loads(payload) if payload else {}
         if arguments[:2] == ["api", "graphql"]:
             query, variables = body["query"], body["variables"]
+            if "addProjectV2ItemById" in query:
+                self.statuses.append("")
+                item = {"id": f"PVTI_{len(self.statuses) - 1}"}
+                return json.dumps({"data": {"addProjectV2ItemById": {"item": item}}})
+            if "projectsV2(" in query:
+                nodes = [{"id": f"P_{i}", "title": f"Board {i}", "closed": False} for i in range(self.linked)]
+                return json.dumps({"data": {"repository": {"projectsV2": {"nodes": nodes}}}})
             if "updateProjectV2ItemFieldValue" in query:
                 index = int(variables["item"].removeprefix("PVTI_"))
                 name = next(o["name"] for o in self.options if o["id"] == variables["option"])
@@ -112,8 +120,15 @@ def test_profile_state_map_overrides_option_names() -> None:
     assert (fake.statuses, item.state) == (["QA"], State.IN_REVIEW)
 
 
-def test_issue_on_no_project_cannot_show_in_progress() -> None:
-    with pytest.raises(TrackerError, match="no GitHub Project"):
+def test_issue_on_no_project_is_placed_on_the_repository_projects() -> None:
+    fake = FakeGitHub(cards=0)
+    fake.linked = 1
+    item = tracker(fake).transition(REF, State.IN_REVIEW)
+    assert (fake.statuses, item.state) == (["In Review"], State.IN_REVIEW)
+
+
+def test_repository_without_a_linked_project_says_so() -> None:
+    with pytest.raises(TrackerError, match="no linked GitHub Project"):
         tracker(FakeGitHub(cards=0)).transition(REF, State.IN_PROGRESS)
 
 

@@ -40,6 +40,14 @@ FIELD = (
     "query($project:ID!,$field:String!){node(id:$project){... on ProjectV2{"
     "field(name:$field){... on ProjectV2SingleSelectField{id options{id name}}}}}}"
 )
+REPOSITORY_PROJECTS = (
+    "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){"
+    "projectsV2(first:20){nodes{id title closed}}}}"
+)
+ADD_CARD = (
+    "mutation($project:ID!,$content:ID!){addProjectV2ItemById("
+    "input:{projectId:$project,contentId:$content}){item{id}}}"
+)
 SET_STATUS = (
     "mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){"
     "updateProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field,"
@@ -108,11 +116,7 @@ class GitHubTracker:
 
     def transition(self, ref: ItemRef, state: State) -> Item:
         issue = self._issue(ref)
-        cards = issue["projectItems"]["nodes"]
-        if not cards and state not in {State.TO_DO, State.DONE}:
-            raise TrackerError(
-                f"issue {ref} is on no GitHub Project, so it cannot show {state.value}; add it to one"
-            )
+        cards = issue["projectItems"]["nodes"] or self._place(ref, issue["id"])
         for card in cards:
             project = card["project"]
             field = self._graphql(FIELD, project=project["id"], field=self.status_field)["node"]["field"]
@@ -128,9 +132,25 @@ class GitHubTracker:
         elif state is not State.DONE and closed:
             self._rest("PATCH", self._issue_path(ref), {"state": "open"})
         item = self.resolve(ref)
-        if cards and item.state is not state:
+        if item.state is not state:
             raise TrackerError(f"GitHub did not record {state.value} for {ref}")
         return item
+
+    def _place(self, ref: ItemRef, issue: str) -> list[dict[str, Any]]:
+        owner, name = self._owner_name(ref)
+        found = self._graphql(REPOSITORY_PROJECTS, owner=owner, name=name)["repository"]["projectsV2"][
+            "nodes"
+        ]
+        projects = [project for project in found if not project["closed"]]
+        if not projects:
+            raise TrackerError(
+                f"{owner}/{name} has no linked GitHub Project to place {ref} on; link one to the repository"
+            )
+        cards = []
+        for project in projects:
+            added = self._graphql(ADD_CARD, project=project["id"], content=issue)
+            cards.append({"id": added["addProjectV2ItemById"]["item"]["id"], "project": project})
+        return cards
 
     def comment(self, ref: ItemRef, text: str) -> None:
         self._rest("POST", self._issue_path(ref) + "/comments", {"body": text})
