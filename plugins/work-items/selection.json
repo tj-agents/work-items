@@ -3,123 +3,21 @@
   "dependencies": [],
   "profiles": {
     "core": [
-      "manage",
-      "write-bug",
-      "write-debt",
-      "write-feature",
-      "write-issue",
-      "write-mistake",
-      "write-task"
+      "item"
     ]
   },
   "compatibilitySkillAliases": {},
   "skills": [
     {
-      "name": "manage",
+      "name": "item",
       "kind": "utility",
       "profile": "core",
       "applicability": [
-        "provider packages and repositories explicitly adopting GitHub work items"
+        "any repository whose origin matches an installed work-item profile",
+        "or any GitHub repository"
       ],
       "requires": [
-        "python>=3.9",
-        "git; authenticated gh for GitHub lifecycle operations"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-bug",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-debt",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-feature",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-issue",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-mistake",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
-      ],
-      "provenance": [
-        "house"
-      ]
-    },
-    {
-      "name": "write-task",
-      "kind": "utility",
-      "profile": "core",
-      "applicability": [
-        "repositories recording work through an explicitly selected provider"
-      ],
-      "requires": [
-        "python>=3.9",
-        "git",
-        "work-items"
+        "tj-item on PATH"
       ],
       "provenance": [
         "house"

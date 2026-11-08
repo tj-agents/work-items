@@ -1,0 +1,13 @@
+[project]
+name = "tj-work-items"
+version = "0.2.0"
+description = "One work-item tracker interface with GitHub and Azure DevOps adapters, and the tj item CLI"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+tj-item = "tj_work_items.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
