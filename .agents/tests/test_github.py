@@ -19,6 +19,7 @@ class FakeGitHub:
         self.statuses = ["Todo"] * cards
         self.options = options
         self.comments: list[str] = []
+        self.labels: list[str] = []
         self.calls: list[list[str]] = []
 
     def issue(self) -> dict[str, Any]:
@@ -29,7 +30,8 @@ class FakeGitHub:
             "url": "https://github.com/tj-agents/core/issues/461",
             "state": self.state,
             "body": "Body",
-            "issueType": {"name": "Feature"},
+            "issueType": {"name": "Task"} if self.labels else {"name": "Feature"},
+            "labels": {"nodes": [{"name": name} for name in self.labels]},
             "assignees": {"nodes": [{"login": "tommy"}]},
             "repository": {"nameWithOwner": "tj-agents/core"},
             "projectItems": {
@@ -127,3 +129,9 @@ def test_list_mine_searches_the_repository_for_your_open_issues() -> None:
     fake = FakeGitHub()
     assert [str(item.ref) for item in tracker(fake).list_mine()] == [str(REF)]
     assert fake.calls[-1][:2] == ["api", "graphql"]
+
+
+def test_kind_label_beats_the_issue_type() -> None:
+    fake = FakeGitHub()
+    fake.labels = ["enhancement", "Debt"]
+    assert tracker(fake).resolve(REF).kind == "debt"
