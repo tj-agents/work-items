@@ -110,15 +110,18 @@ class AzureDevOpsTracker:
         parts = urlsplit(url)
         segments = parts.path.strip("/").split("/")
         host = (parts.hostname or "").casefold()
-        if host == "dev.azure.com" and len(segments) >= 5:
-            organization, rest = segments[0], segments[2:]
-        elif host.endswith(".visualstudio.com") and len(segments) >= 4:
-            organization, rest = host.removesuffix(".visualstudio.com"), segments[1:]
+        if host == "dev.azure.com" and segments:
+            organization, rest = segments[0], segments[1:]
+        elif host.endswith(".visualstudio.com"):
+            organization, rest = host.removesuffix(".visualstudio.com"), segments
         else:
             return None
-        if rest[:2] != ["_workitems", "edit"] or not rest[2].isdigit():
+        if "_workitems" not in rest:
             return None
-        return ItemRef("azure-devops", f"dev.azure.com/{organization}".casefold(), rest[2])
+        tail = rest[rest.index("_workitems") + 1 :]
+        if len(tail) != 2 or tail[0] != "edit" or not tail[1].isdigit():
+            return None
+        return ItemRef("azure-devops", f"dev.azure.com/{organization}".casefold(), tail[1])
 
     def default_scope(self) -> str | None:
         return f"dev.azure.com/{self.organization}".casefold()
@@ -156,6 +159,8 @@ class AzureDevOpsTracker:
             except HttpStatusError as error:
                 if error.status != 400:
                     raise
+                if self._work_item(ref)["fields"]["System.State"] == target:
+                    return self.resolve(ref)
                 for step in self._walk(fields["System.TeamProject"], work_type, current, target, error):
                     self._set_state(ref, self._work_item(ref)["rev"], step)
         item = self.resolve(ref)

@@ -5,7 +5,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 _QUALIFIED = re.compile(r"(?P<provider>[a-z][a-z0-9-]*):(?P<scope>[^\s:]+):(?P<id>[^\s:/]+)")
-_BARE = re.compile(r"#?(?P<id>[A-Za-z0-9][A-Za-z0-9_-]*)")
+_BARE = re.compile(r"(?:AB#|#)?(?P<id>[A-Za-z0-9][A-Za-z0-9_-]*)")
 
 
 @dataclass(frozen=True)
