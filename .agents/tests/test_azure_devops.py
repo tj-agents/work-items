@@ -136,3 +136,20 @@ def test_reference_from_another_organization_is_refused() -> None:
 def test_profile_without_organization_is_refused() -> None:
     with pytest.raises(ConfigError, match="organization"):
         AzureDevOpsTracker({"project": "Product"}, None, send=FakeAzure())
+
+
+def test_rejected_move_that_still_committed_is_accepted() -> None:
+    fake = FakeAzure()
+    original = fake.__call__
+
+    def committed_but_rejected(method: str, url: str, body: Any, content_type: str) -> Any:
+        if method == "PATCH" and not fake.patches:
+            original(method, url, body, content_type)
+            raise HttpStatusError(400, "TF401320: Rule Error for field System Area")
+        return original(method, url, body, content_type)
+
+    ado = AzureDevOpsTracker(
+        {"organization": "contoso", "project": "Product"}, None, send=committed_but_rejected
+    )
+    assert ado.transition(REF, State.IN_PROGRESS).native_state == "Active"
+    assert fake.patches == ["Active"]
