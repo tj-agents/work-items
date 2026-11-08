@@ -9,15 +9,19 @@ import subprocess
 from collections.abc import Callable, Mapping
 from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 from urllib.request import Request, urlopen
 
+from tj_work_items.adapters.github import Runner, gh, github_pull, pull_location, pull_request
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Item, Repository, TrackerError, kind_for
+from tj_work_items.tracker import ConfigError, Item, PullRequest, Repository, TrackerError, kind_for
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798"
 PAT_VARIABLE = "AZURE_DEVOPS_EXT_PAT"
+AZURE_PULL = "vstfs:///Git/PullRequestId/"
+GITHUB_PULL = "vstfs:///GitHub/PullRequest/"
+PULL_STATES = {"active": "open", "completed": "merged", "abandoned": "closed"}
 CATEGORY_STATES = {
     "Proposed": State.TO_DO,
     "InProgress": State.IN_PROGRESS,
@@ -93,6 +97,7 @@ class AzureDevOpsTracker:
         settings: Mapping[str, Any],
         repository: Repository | None,
         send: Send | None = None,
+        run: Runner = gh,
     ) -> None:
         del repository
         organization, project = settings.get("organization"), settings.get("project")
@@ -104,6 +109,7 @@ class AzureDevOpsTracker:
         self.kinds = dict(settings.get("kinds", {}))
         self.send = send or http_sender(self._authorization(settings.get("tenant")))
         self._type_states: dict[tuple[str, str], list[dict[str, str]]] = {}
+        self.run = run
 
     @staticmethod
     def parse_url(url: str) -> ItemRef | None:
@@ -183,6 +189,58 @@ class AzureDevOpsTracker:
             {"op": "add", "path": "/relations/-", "value": {"rel": "Hyperlink", "url": url}},
         ]
         self.send("PATCH", self._item_url(ref), patch, "application/json-patch+json")
+
+    def linked_prs(self, ref: ItemRef) -> list[PullRequest]:
+        raw = self._work_item(ref)
+        project = raw["fields"]["System.TeamProject"]
+        found: dict[str, PullRequest] = {}
+        for relation in raw.get("relations") or []:
+            url = str(relation.get("url", ""))
+            location = pull_location(url) if relation.get("rel") == "Hyperlink" else None
+            pull: PullRequest | None
+            if url.startswith(AZURE_PULL):
+                pull = self._azure_pull(unquote(url.removeprefix(AZURE_PULL)))
+            elif url.startswith(GITHUB_PULL):
+                pull = self._github_artifact(project, unquote(url.removeprefix(GITHUB_PULL)), ref.id)
+            elif location is not None:
+                node = github_pull(self.run, *location)
+                pull = None if node is None else pull_request(node)
+            else:
+                continue
+            if pull is not None:
+                found.setdefault(pull.url, pull)
+        return list(found.values())
+
+    def _azure_pull(self, artifact: str) -> PullRequest:
+        project, repository, number = artifact.split("/")
+        url = (
+            f"https://dev.azure.com/{self.organization}/{project}/_apis/git/repositories/{repository}"
+            f"/pullrequests/{number}?api-version=7.1"
+        )
+        pull = self.send("GET", url, None, "application/json")
+        return PullRequest(
+            url=f"{pull['repository']['webUrl']}/pullrequest/{number}",
+            state=PULL_STATES.get(pull["status"], pull["status"]),
+            head=pull["sourceRefName"].removeprefix("refs/heads/"),
+            title=pull.get("title", ""),
+        )
+
+    def _github_artifact(self, project: str, artifact: str, item: str) -> PullRequest | None:
+        connection, number = artifact.split("/")
+        url = (
+            f"https://dev.azure.com/{self.organization}/{quote(project)}/_apis/githubconnections/{connection}"
+            "/repos?api-version=7.1-preview.1"
+        )
+        repositories = self.send("GET", url, None, "application/json")
+        candidates = []
+        for entry in repositories.get("value", []):
+            location = pull_location(f"{entry['gitHubRepositoryUrl'].rstrip('/')}/pull/{number}")
+            node = None if location is None else github_pull(self.run, *location)
+            if node is not None:
+                candidates.append(node)
+        if len(candidates) > 1:
+            candidates = [node for node in candidates if f"AB#{item}" in (node.get("body") or "")]
+        return pull_request(candidates[0]) if len(candidates) == 1 else None
 
     def _authorization(self, tenant: Any) -> Callable[[], str]:
         cached: list[str] = []

@@ -6,7 +6,7 @@ from `packages/tj-work-items`.
 ```text
 tj item resolve <ref> [--body]          tj item comment <ref> --body-file <file>
 tj item mine                            tj item link <ref> <pull-request-url>
-tj item progress <ref> --state "In Review"
+tj item progress <ref> --state "In Review"   tj item prs <ref>
 ```
 
 `tj` dispatches `tj item` to the `tj-item` console script. Install it with
@@ -15,7 +15,9 @@ adding `--with <profile package>` for each employer profile the machine uses.
 
 ## Interface
 
-`Tracker`: `resolve(ref)`, `list_mine()`, `transition(ref, state)`, `comment(ref, text)`, `link_artifact(ref, url)`.
+`Tracker`: `resolve(ref)`, `list_mine()`, `transition(ref, state)`, `comment(ref, text)`, `link_artifact(ref, url)`,
+`linked_prs(ref)`. `tj item prs` prints `{"ref", "prs": [{"url", "state": open|merged|closed, "head", "title"}], "all_merged"}`;
+`all_merged` is false when no PR is linked.
 Canonical states: To Do, In Progress, Blocked, In Review, Done. Refs are `provider:scope:id`; a bare `461` or `#461`
 takes the active profile's tracker and scope, and each adapter parses its own URLs.
 

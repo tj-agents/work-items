@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Item, Repository, TrackerError, kind_for
+from tj_work_items.tracker import ConfigError, Item, PullRequest, Repository, TrackerError, kind_for
 
 Runner = Callable[[list[str], str | None], str]
 
@@ -48,6 +48,15 @@ ADD_CARD = (
     "mutation($project:ID!,$content:ID!){addProjectV2ItemById("
     "input:{projectId:$project,contentId:$content}){item{id}}}"
 )
+PULL_FIELDS = "url state title body headRefName"
+CLOSING_PRS = (
+    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){"
+    "closedByPullRequestsReferences(first:50,includeClosedPrs:true){nodes{" + PULL_FIELDS + "}}}}}"
+)
+PULL = (
+    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){"
+    "pullRequest(number:$number){" + PULL_FIELDS + "}}}"
+)
 SET_STATUS = (
     "mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){"
     "updateProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field,"
@@ -75,6 +84,41 @@ def gh(arguments: list[str], payload: str | None) -> str:
         command = " ".join(arguments[:4])
         raise TrackerError(f"gh {command} failed: {result.stderr.strip() or result.stdout}")
     return result.stdout
+
+
+def pull_location(url: str) -> tuple[str, str, int] | None:
+    parts = urlsplit(url)
+    segments = parts.path.strip("/").split("/")
+    if (
+        parts.hostname != "github.com"
+        or len(segments) != 4
+        or segments[2] != "pull"
+        or not segments[3].isdigit()
+    ):
+        return None
+    return segments[0], segments[1], int(segments[3])
+
+
+def graphql(run: Runner, document: str, **variables: Any) -> dict[str, Any]:
+    response = json.loads(
+        run(["api", "graphql", "--input", "-"], json.dumps({"query": document, "variables": variables}))
+    )
+    if response.get("errors") or not isinstance(response.get("data"), dict):
+        raise TrackerError(f"GitHub GraphQL failed: {response.get('errors')}")
+    return dict(response["data"])
+
+
+def pull_request(node: Mapping[str, Any]) -> PullRequest:
+    return PullRequest(
+        url=node["url"], state=node["state"].lower(), head=node["headRefName"], title=node["title"]
+    )
+
+
+def github_pull(run: Runner, owner: str, name: str, number: int) -> Mapping[str, Any] | None:
+    found = (graphql(run, PULL, owner=owner, name=name, number=number).get("repository") or {}).get(
+        "pullRequest"
+    )
+    return found if isinstance(found, Mapping) else None
 
 
 class GitHubTracker:
@@ -161,6 +205,22 @@ class GitHubTracker:
             return
         self.comment(ref, f"Linked: {url}")
 
+    def linked_prs(self, ref: ItemRef) -> list[PullRequest]:
+        owner, name = self._owner_name(ref)
+        issue = self._graphql(CLOSING_PRS, owner=owner, name=name, number=int(ref.id))["repository"]["issue"]
+        found = {node["url"]: pull_request(node) for node in issue["closedByPullRequestsReferences"]["nodes"]}
+        comments = json.loads(self.run(["api", self._issue_path(ref) + "/comments?per_page=100"], None))
+        for comment in comments:
+            text = comment.get("body", "")
+            location = (
+                pull_location(text.removeprefix("Linked: ").strip()) if text.startswith("Linked: ") else None
+            )
+            if location is not None:
+                node = github_pull(self.run, *location)
+                if node is not None:
+                    found.setdefault(node["url"], pull_request(node))
+        return list(found.values())
+
     def _issue(self, ref: ItemRef) -> dict[str, Any]:
         owner, name = self._owner_name(ref)
         data = self._graphql(ISSUE, owner=owner, name=name, number=int(ref.id), field=self.status_field)
@@ -229,11 +289,7 @@ class GitHubTracker:
         return f"repos/{owner}/{name}/issues/{ref.id}"
 
     def _graphql(self, document: str, /, **variables: Any) -> dict[str, Any]:
-        payload = json.dumps({"query": document, "variables": variables})
-        response = json.loads(self.run(["api", "graphql", "--input", "-"], payload))
-        if response.get("errors") or not isinstance(response.get("data"), dict):
-            raise TrackerError(f"GitHub GraphQL failed: {response.get('errors')}")
-        return dict(response["data"])
+        return graphql(self.run, document, **variables)
 
     def _rest(self, method: str, path: str, body: Mapping[str, Any]) -> None:
         self.run(["api", "-X", method, path, "--input", "-"], json.dumps(body))
