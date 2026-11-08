@@ -21,7 +21,7 @@ takes the active profile's tracker and scope, and each adapter parses its own UR
 
 | Adapter | Transport | State |
 |---|---|---|
-| `github` | `gh api` | Projects v2 Status on every project the issue is in; Done closes the issue |
+| `github` | `gh api` | Projects v2 Status on every project the issue is in, placing it on the repository's linked Projects when it is on none; Done closes the issue |
 | `azure-devops` | REST 7.1, `az` token or `AZURE_DEVOPS_EXT_PAT` | profile map, else the ADO state category; walks intermediate states when a direct move is rejected |
 
 Another tracker is one adapter class registered under the `tj_work_items.trackers` entry-point group.
