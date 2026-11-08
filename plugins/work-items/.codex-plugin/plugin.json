@@ -17,5 +17,6 @@
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": "Show me what work-items can do."
-  }
+  },
+  "version": "6eb471ca6ede"
 }
