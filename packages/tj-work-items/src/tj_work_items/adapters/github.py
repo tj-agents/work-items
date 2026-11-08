@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Item, Repository, TrackerError, kind_for
+from tj_work_items.tracker import ConfigError, Item, PullRequest, Repository, TrackerError, kind_for
 
 Runner = Callable[[list[str], str | None], str]
 
@@ -40,6 +40,23 @@ FIELD = (
     "query($project:ID!,$field:String!){node(id:$project){... on ProjectV2{"
     "field(name:$field){... on ProjectV2SingleSelectField{id options{id name}}}}}}"
 )
+REPOSITORY_PROJECTS = (
+    "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){"
+    "projectsV2(first:20){nodes{id title closed}}}}"
+)
+ADD_CARD = (
+    "mutation($project:ID!,$content:ID!){addProjectV2ItemById("
+    "input:{projectId:$project,contentId:$content}){item{id}}}"
+)
+PULL_FIELDS = "url state title body headRefName"
+CLOSING_PRS = (
+    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){"
+    "closedByPullRequestsReferences(first:50,includeClosedPrs:true){nodes{" + PULL_FIELDS + "}}}}}"
+)
+PULL = (
+    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){"
+    "pullRequest(number:$number){" + PULL_FIELDS + "}}}"
+)
 SET_STATUS = (
     "mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){"
     "updateProjectV2ItemFieldValue(input:{projectId:$project,itemId:$item,fieldId:$field,"
@@ -67,6 +84,41 @@ def gh(arguments: list[str], payload: str | None) -> str:
         command = " ".join(arguments[:4])
         raise TrackerError(f"gh {command} failed: {result.stderr.strip() or result.stdout}")
     return result.stdout
+
+
+def pull_location(url: str) -> tuple[str, str, int] | None:
+    parts = urlsplit(url)
+    segments = parts.path.strip("/").split("/")
+    if (
+        parts.hostname != "github.com"
+        or len(segments) != 4
+        or segments[2] != "pull"
+        or not segments[3].isdigit()
+    ):
+        return None
+    return segments[0], segments[1], int(segments[3])
+
+
+def graphql(run: Runner, document: str, **variables: Any) -> dict[str, Any]:
+    response = json.loads(
+        run(["api", "graphql", "--input", "-"], json.dumps({"query": document, "variables": variables}))
+    )
+    if response.get("errors") or not isinstance(response.get("data"), dict):
+        raise TrackerError(f"GitHub GraphQL failed: {response.get('errors')}")
+    return dict(response["data"])
+
+
+def pull_request(node: Mapping[str, Any]) -> PullRequest:
+    return PullRequest(
+        url=node["url"], state=node["state"].lower(), head=node["headRefName"], title=node["title"]
+    )
+
+
+def github_pull(run: Runner, owner: str, name: str, number: int) -> Mapping[str, Any] | None:
+    found = (graphql(run, PULL, owner=owner, name=name, number=number).get("repository") or {}).get(
+        "pullRequest"
+    )
+    return found if isinstance(found, Mapping) else None
 
 
 class GitHubTracker:
@@ -108,11 +160,7 @@ class GitHubTracker:
 
     def transition(self, ref: ItemRef, state: State) -> Item:
         issue = self._issue(ref)
-        cards = issue["projectItems"]["nodes"]
-        if not cards and state not in {State.TO_DO, State.DONE}:
-            raise TrackerError(
-                f"issue {ref} is on no GitHub Project, so it cannot show {state.value}; add it to one"
-            )
+        cards = issue["projectItems"]["nodes"] or self._place(ref, issue["id"])
         for card in cards:
             project = card["project"]
             field = self._graphql(FIELD, project=project["id"], field=self.status_field)["node"]["field"]
@@ -128,9 +176,25 @@ class GitHubTracker:
         elif state is not State.DONE and closed:
             self._rest("PATCH", self._issue_path(ref), {"state": "open"})
         item = self.resolve(ref)
-        if cards and item.state is not state:
+        if item.state is not state:
             raise TrackerError(f"GitHub did not record {state.value} for {ref}")
         return item
+
+    def _place(self, ref: ItemRef, issue: str) -> list[dict[str, Any]]:
+        owner, name = self._owner_name(ref)
+        found = self._graphql(REPOSITORY_PROJECTS, owner=owner, name=name)["repository"]["projectsV2"][
+            "nodes"
+        ]
+        projects = [project for project in found if not project["closed"]]
+        if not projects:
+            raise TrackerError(
+                f"{owner}/{name} has no linked GitHub Project to place {ref} on; link one to the repository"
+            )
+        cards = []
+        for project in projects:
+            added = self._graphql(ADD_CARD, project=project["id"], content=issue)
+            cards.append({"id": added["addProjectV2ItemById"]["item"]["id"], "project": project})
+        return cards
 
     def comment(self, ref: ItemRef, text: str) -> None:
         self._rest("POST", self._issue_path(ref) + "/comments", {"body": text})
@@ -140,6 +204,22 @@ class GitHubTracker:
         if any(url in comment.get("body", "") for comment in comments):
             return
         self.comment(ref, f"Linked: {url}")
+
+    def linked_prs(self, ref: ItemRef) -> list[PullRequest]:
+        owner, name = self._owner_name(ref)
+        issue = self._graphql(CLOSING_PRS, owner=owner, name=name, number=int(ref.id))["repository"]["issue"]
+        found = {node["url"]: pull_request(node) for node in issue["closedByPullRequestsReferences"]["nodes"]}
+        comments = json.loads(self.run(["api", self._issue_path(ref) + "/comments?per_page=100"], None))
+        for comment in comments:
+            text = comment.get("body", "")
+            location = (
+                pull_location(text.removeprefix("Linked: ").strip()) if text.startswith("Linked: ") else None
+            )
+            if location is not None:
+                node = github_pull(self.run, *location)
+                if node is not None:
+                    found.setdefault(node["url"], pull_request(node))
+        return list(found.values())
 
     def _issue(self, ref: ItemRef) -> dict[str, Any]:
         owner, name = self._owner_name(ref)
@@ -209,11 +289,7 @@ class GitHubTracker:
         return f"repos/{owner}/{name}/issues/{ref.id}"
 
     def _graphql(self, document: str, /, **variables: Any) -> dict[str, Any]:
-        payload = json.dumps({"query": document, "variables": variables})
-        response = json.loads(self.run(["api", "graphql", "--input", "-"], payload))
-        if response.get("errors") or not isinstance(response.get("data"), dict):
-            raise TrackerError(f"GitHub GraphQL failed: {response.get('errors')}")
-        return dict(response["data"])
+        return graphql(self.run, document, **variables)
 
     def _rest(self, method: str, path: str, body: Mapping[str, Any]) -> None:
         self.run(["api", "-X", method, path, "--input", "-"], json.dumps(body))

@@ -10,6 +10,13 @@ from tj_work_items.states import State
 from tj_work_items.tracker import Repository, TrackerError
 
 REF = ItemRef("github", "github.com/tj-agents/core", "461")
+PULL_NODE = {
+    "url": "https://github.com/tj-agents/core/pull/9",
+    "state": "MERGED",
+    "title": "Fix it",
+    "body": "Closes #461",
+    "headRefName": "Fix/It",
+}
 OPTIONS = [{"id": name.lower(), "name": name} for name in ("Todo", "In Progress", "In Review", "Done")]
 
 
@@ -20,6 +27,8 @@ class FakeGitHub:
         self.options = options
         self.comments: list[str] = []
         self.labels: list[str] = []
+        self.linked = 0
+        self.closing = False
         self.calls: list[list[str]] = []
 
     def issue(self) -> dict[str, Any]:
@@ -51,6 +60,22 @@ class FakeGitHub:
         body = json.loads(payload) if payload else {}
         if arguments[:2] == ["api", "graphql"]:
             query, variables = body["query"], body["variables"]
+            if "closedByPullRequestsReferences" in query:
+                nodes: list[dict[str, Any]] = [PULL_NODE] if self.closing else []
+                issue = {"closedByPullRequestsReferences": {"nodes": nodes}}
+                return json.dumps({"data": {"repository": {"issue": issue}}})
+            if "pullRequest(" in query:
+                node = {**PULL_NODE, "url": f"https://github.com/tj-agents/core/pull/{variables['number']}"}
+                return json.dumps({"data": {"repository": {"pullRequest": node}}})
+            if "addProjectV2ItemById" in query:
+                self.statuses.append("")
+                item = {"id": f"PVTI_{len(self.statuses) - 1}"}
+                return json.dumps({"data": {"addProjectV2ItemById": {"item": item}}})
+            if "projectsV2(" in query:
+                projects: list[dict[str, Any]] = [
+                    {"id": f"P_{i}", "title": f"Board {i}", "closed": False} for i in range(self.linked)
+                ]
+                return json.dumps({"data": {"repository": {"projectsV2": {"nodes": projects}}}})
             if "updateProjectV2ItemFieldValue" in query:
                 index = int(variables["item"].removeprefix("PVTI_"))
                 name = next(o["name"] for o in self.options if o["id"] == variables["option"])
@@ -112,8 +137,15 @@ def test_profile_state_map_overrides_option_names() -> None:
     assert (fake.statuses, item.state) == (["QA"], State.IN_REVIEW)
 
 
-def test_issue_on_no_project_cannot_show_in_progress() -> None:
-    with pytest.raises(TrackerError, match="no GitHub Project"):
+def test_issue_on_no_project_is_placed_on_the_repository_projects() -> None:
+    fake = FakeGitHub(cards=0)
+    fake.linked = 1
+    item = tracker(fake).transition(REF, State.IN_REVIEW)
+    assert (fake.statuses, item.state) == (["In Review"], State.IN_REVIEW)
+
+
+def test_repository_without_a_linked_project_says_so() -> None:
+    with pytest.raises(TrackerError, match="no linked GitHub Project"):
         tracker(FakeGitHub(cards=0)).transition(REF, State.IN_PROGRESS)
 
 
@@ -135,3 +167,15 @@ def test_kind_label_beats_the_issue_type() -> None:
     fake = FakeGitHub()
     fake.labels = ["enhancement", "Debt"]
     assert tracker(fake).resolve(REF).kind == "debt"
+
+
+def test_linked_prs_combine_closing_references_and_linked_comments() -> None:
+    fake = FakeGitHub()
+    fake.closing = True
+    github = tracker(fake)
+    github.link_artifact(REF, "https://github.com/tj-agents/core/pull/12")
+    pulls = github.linked_prs(REF)
+    assert [(pull.url, pull.state, pull.head) for pull in pulls] == [
+        ("https://github.com/tj-agents/core/pull/9", "merged", "Fix/It"),
+        ("https://github.com/tj-agents/core/pull/12", "merged", "Fix/It"),
+    ]

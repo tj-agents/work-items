@@ -49,3 +49,24 @@ def test_empty_comment_file_is_refused(capsys: pytest.CaptureFixture[str], tmp_p
     empty.write_text("  \n", encoding="utf-8")
     code, error = run(capsys, "comment", "461", "--body-file", str(empty))
     assert (code, error["error"]) == (cli.EXIT_USAGE, "comment text is empty")
+
+
+def test_prs_reports_all_merged_only_when_every_linked_pr_merged(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tj_work_items.adapters.github import GitHubTracker
+    from tj_work_items.tracker import PullRequest
+
+    pulls = [
+        PullRequest("https://github.com/o/r/pull/1", "merged", "A"),
+        PullRequest("https://github.com/o/r/pull/2", "open", "B"),
+    ]
+    monkeypatch.setattr(profiles, "repository_at", lambda cwd: Repository("github.com", "tj-agents/core"))
+    monkeypatch.setattr(profiles, "installed_profiles", list)
+    monkeypatch.setattr(GitHubTracker, "linked_prs", lambda self, ref: pulls)
+    code, result = run(capsys, "prs", "461")
+    assert code == 0
+    assert result["all_merged"] is False
+    assert [pull["state"] for pull in result["prs"]] == ["merged", "open"]
+    monkeypatch.setattr(GitHubTracker, "linked_prs", lambda self, ref: [])
+    assert run(capsys, "prs", "461")[1]["all_merged"] is False

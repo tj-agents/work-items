@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -40,6 +41,21 @@ class FakeAzure:
         }
 
     def __call__(self, method: str, url: str, body: Any, content_type: str) -> Any:
+        if "/pullrequests/" in url:
+            repository = {"webUrl": "https://dev.azure.com/contoso/Product/_git/app"}
+            return {
+                "status": "active",
+                "sourceRefName": "refs/heads/Feature/X",
+                "title": "X",
+                "repository": repository,
+            }
+        if "githubconnections" in url:
+            return {
+                "value": [
+                    {"gitHubRepositoryUrl": "https://github.com/contoso/one"},
+                    {"gitHubRepositoryUrl": "https://github.com/contoso/two"},
+                ]
+            }
         if "/states" in url:
             return {"value": self.states}
         if method == "GET":
@@ -153,3 +169,33 @@ def test_rejected_move_that_still_committed_is_accepted() -> None:
     )
     assert ado.transition(REF, State.IN_PROGRESS).native_state == "Active"
     assert fake.patches == ["Active"]
+
+
+def test_linked_prs_read_azure_repos_github_artifacts_and_hyperlinks() -> None:
+    fake = FakeAzure()
+    fake.relations = [
+        {"rel": "ArtifactLink", "url": "vstfs:///Git/PullRequestId/p1%2Fr1%2F7"},
+        {"rel": "ArtifactLink", "url": "vstfs:///GitHub/PullRequest/conn%2F5"},
+        {"rel": "Hyperlink", "url": "https://github.com/contoso/three/pull/8"},
+        {"rel": "Hyperlink", "url": "https://example.com/wiki"},
+    ]
+
+    def gh(arguments: list[str], payload: str | None) -> str:
+        variables = json.loads(payload or "{}")["variables"]
+        repository = f"{variables['owner']}/{variables['name']}"
+        body = "Fixes AB#42" if repository in {"contoso/two", "contoso/three"} else "unrelated"
+        node = {
+            "url": f"https://github.com/{repository}/pull/{variables['number']}",
+            "state": "MERGED",
+            "title": "t",
+            "body": body,
+            "headRefName": "AB#42",
+        }
+        return json.dumps({"data": {"repository": {"pullRequest": node}}})
+
+    ado = AzureDevOpsTracker({"organization": "contoso", "project": "Product"}, None, send=fake, run=gh)
+    assert [(pull.url, pull.state, pull.head) for pull in ado.linked_prs(REF)] == [
+        ("https://dev.azure.com/contoso/Product/_git/app/pullrequest/7", "open", "Feature/X"),
+        ("https://github.com/contoso/two/pull/5", "merged", "AB#42"),
+        ("https://github.com/contoso/three/pull/8", "merged", "AB#42"),
+    ]
