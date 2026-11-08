@@ -36,6 +36,8 @@ def parser() -> argparse.ArgumentParser:
     link = actions.add_parser("link", help="link an artifact such as a pull request")
     link.add_argument("ref")
     link.add_argument("url")
+    prs = actions.add_parser("prs", help="list the pull requests linked to a work item")
+    prs.add_argument("ref")
     actions.add_parser("profile", help="show the profile and tracker selected for this repository")
     return root
 
@@ -61,6 +63,7 @@ def run(arguments: argparse.Namespace) -> Any:
         "progress": lambda: target.transition(ref, State.parse(arguments.state)).to_json(),
         "comment": lambda: _comment(target, ref, arguments),
         "link": lambda: _link(target, ref, arguments.url),
+        "prs": lambda: _prs(target, ref),
     }
     return actions[arguments.action]()
 
@@ -80,6 +83,15 @@ def _comment(tracker: Tracker, ref: ItemRef, arguments: argparse.Namespace) -> d
         raise ConfigError("comment text is empty")
     tracker.comment(ref, text)
     return {"ref": str(ref), "commented": "true"}
+
+
+def _prs(tracker: Tracker, ref: ItemRef) -> dict[str, Any]:
+    pulls = tracker.linked_prs(ref)
+    return {
+        "ref": str(ref),
+        "prs": [pull.to_json() for pull in pulls],
+        "all_merged": bool(pulls) and all(pull.state == "merged" for pull in pulls),
+    }
 
 
 def _link(tracker: Tracker, ref: ItemRef, url: str) -> dict[str, str]:

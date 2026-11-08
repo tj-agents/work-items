@@ -48,6 +48,17 @@ class Item:
         return result
 
 
+@dataclass(frozen=True)
+class PullRequest:
+    url: str
+    state: str
+    head: str
+    title: str = ""
+
+    def to_json(self) -> dict[str, str]:
+        return {"url": self.url, "state": self.state, "head": self.head, "title": self.title}
+
+
 class Tracker(Protocol):
     provider: ClassVar[str]
 
@@ -65,6 +76,8 @@ class Tracker(Protocol):
     def comment(self, ref: ItemRef, text: str) -> None: ...
 
     def link_artifact(self, ref: ItemRef, url: str) -> None: ...
+
+    def linked_prs(self, ref: ItemRef) -> list[PullRequest]: ...
 
 
 class TrackerType(Protocol):
