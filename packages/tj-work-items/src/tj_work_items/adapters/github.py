@@ -9,7 +9,15 @@ from urllib.parse import urlsplit
 
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Item, PullRequest, Repository, TrackerError, kind_for
+from tj_work_items.tracker import (
+    ConfigError,
+    Item,
+    PullRequest,
+    Repository,
+    TrackerError,
+    kind_for,
+    parent_note,
+)
 
 Runner = Callable[[list[str], str | None], str]
 
@@ -150,6 +158,24 @@ class GitHubTracker:
     def resolve(self, ref: ItemRef) -> Item:
         return self._item(self._issue(ref))
 
+    def create(self, title: str, body: str, parent: ItemRef | None, fields: Mapping[str, str]) -> Item:
+        if fields:
+            raise ConfigError(f"a GitHub issue takes no create fields: {', '.join(sorted(fields))}")
+        scope = self.default_scope()
+        if scope is None or self.repository is None:
+            raise ConfigError("creating a GitHub issue needs a github.com repository scope")
+        owner, name = self.repository.path.split("/", 1)
+        payload_body = body
+        if parent is not None and parent.provider != self.provider:
+            payload_body = parent_note(body, parent)
+        created = self._rest_json(
+            "POST", f"repos/{owner}/{name}/issues", {"title": title, "body": payload_body}
+        )
+        ref = ItemRef(self.provider, scope, str(created["number"]))
+        if parent is not None and parent.provider == self.provider:
+            self._add_sub_issue(parent, int(created["id"]))
+        return self.transition(ref, State.TO_DO)
+
     def list_mine(self) -> list[Item]:
         scope = self.default_scope()
         if scope is None:
@@ -288,8 +314,17 @@ class GitHubTracker:
         owner, name = self._owner_name(ref)
         return f"repos/{owner}/{name}/issues/{ref.id}"
 
+    def _add_sub_issue(self, parent: ItemRef, sub_issue_id: int) -> None:
+        owner, name = self._owner_name(parent)
+        self._rest(
+            "POST", f"repos/{owner}/{name}/issues/{parent.id}/sub_issues", {"sub_issue_id": sub_issue_id}
+        )
+
     def _graphql(self, document: str, /, **variables: Any) -> dict[str, Any]:
         return graphql(self.run, document, **variables)
 
     def _rest(self, method: str, path: str, body: Mapping[str, Any]) -> None:
-        self.run(["api", "-X", method, path, "--input", "-"], json.dumps(body))
+        self._rest_json(method, path, body)
+
+    def _rest_json(self, method: str, path: str, body: Mapping[str, Any]) -> dict[str, Any]:
+        return dict(json.loads(self.run(["api", "-X", method, path, "--input", "-"], json.dumps(body))))
