@@ -6,7 +6,8 @@ import json
 import os
 import shutil
 import subprocess
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote, urlsplit
@@ -97,6 +98,35 @@ def http_sender(authorization: Callable[[], str]) -> Send:
     return send
 
 
+@dataclass(frozen=True, slots=True)
+class CreateField:
+    name: str
+    path: str
+    values: tuple[str, ...]
+
+    @classmethod
+    def declared(cls, settings: Mapping[str, Any]) -> tuple[CreateField, ...]:
+        declared = settings.get("create_fields", {})
+        if not isinstance(declared, Mapping):
+            raise ConfigError("`create_fields` must map a field name to its `field` and `values`")
+        fields = []
+        for name, spec in declared.items():
+            path = spec.get("field") if isinstance(spec, Mapping) else None
+            values = spec.get("values") if isinstance(spec, Mapping) else None
+            if (
+                not isinstance(path, str)
+                or not isinstance(values, list)
+                or not values
+                or not all(isinstance(value, str) for value in values)
+            ):
+                raise ConfigError(f"create field `{name}` needs a `field` and a non-empty `values` list")
+            fields.append(cls(name, path, tuple(values)))
+        return tuple(fields)
+
+    def usage(self) -> str:
+        return f"--field {self.name}=<{'|'.join(self.values)}>"
+
+
 class AzureDevOpsTracker:
     provider: ClassVar[str] = "azure-devops"
 
@@ -117,6 +147,7 @@ class AzureDevOpsTracker:
         self.kinds = dict(settings.get("kinds", {}))
         work_item_type = settings.get("work_item_type")
         self.work_item_type = work_item_type if isinstance(work_item_type, str) else None
+        self.create_fields = CreateField.declared(settings)
         self.send = send or http_sender(self._authorization(settings.get("tenant")))
         self._type_states: dict[tuple[str, str], list[dict[str, str]]] = {}
         self.run = run
@@ -145,7 +176,7 @@ class AzureDevOpsTracker:
     def resolve(self, ref: ItemRef) -> Item:
         return self._item(self._work_item(ref))
 
-    def create(self, title: str, body: str, parent: ItemRef | None) -> Item:
+    def create(self, title: str, body: str, parent: ItemRef | None, fields: Mapping[str, str]) -> Item:
         if self.work_item_type is None:
             raise ConfigError("an azure-devops profile needs a `work_item_type` setting to create work items")
         description = body
@@ -157,6 +188,10 @@ class AzureDevOpsTracker:
         ]
         if isinstance(self.area_path, str):
             patch.append({"op": "add", "path": "/fields/System.AreaPath", "value": self.area_path})
+        patch.extend(
+            {"op": "add", "path": f"/fields/{field.path}", "value": value}
+            for field, value in self._field_values(fields)
+        )
         url = (
             f"https://dev.azure.com/{self.organization}/{quote(self.project)}"
             f"/_apis/wit/workitems/${quote(self.work_item_type)}?api-version=7.1"
@@ -167,6 +202,16 @@ class AzureDevOpsTracker:
         if parent is not None and parent.provider == self.provider:
             self._link_parent(ref, parent)
         return item
+
+    def _field_values(self, fields: Mapping[str, str]) -> Sequence[tuple[CreateField, str]]:
+        declared = {field.name: field for field in self.create_fields}
+        unknown = sorted(set(fields) - set(declared))
+        if unknown:
+            raise ConfigError(f"this profile declares no create field {', '.join(unknown)}")
+        invalid = [field for field in self.create_fields if fields.get(field.name) not in field.values]
+        if invalid:
+            raise ConfigError("this profile requires " + " ".join(field.usage() for field in invalid))
+        return [(field, fields[field.name]) for field in self.create_fields]
 
     def list_mine(self) -> list[Item]:
         clauses = ["[System.TeamProject] = @project", "[System.AssignedTo] = @Me"]

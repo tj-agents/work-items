@@ -42,6 +42,14 @@ def parser() -> argparse.ArgumentParser:
     create.add_argument("--title", required=True)
     create.add_argument("--body", default="")
     create.add_argument("--parent", help="ref to link the new item under")
+    create.add_argument(
+        "--field",
+        action="append",
+        default=[],
+        type=_field,
+        metavar="NAME=VALUE",
+        help="a create field the profile declares, such as attribution=TechPlatform",
+    )
     actions.add_parser("profile", help="show the profile and tracker selected for this repository")
     return root
 
@@ -85,7 +93,14 @@ def _create(
             None if default is None else (tracker.provider, default),
             [kind.parse_url for kind in trackers.values()],
         )
-    return tracker.create(arguments.title, arguments.body, parent).to_json()
+    return tracker.create(arguments.title, arguments.body, parent, dict(arguments.field)).to_json()
+
+
+def _field(value: str) -> tuple[str, str]:
+    name, separator, field_value = value.partition("=")
+    if not separator or not name or not field_value:
+        raise argparse.ArgumentTypeError(f"expected NAME=VALUE, got {value!r}")
+    return name, field_value
 
 
 def _tracker_for(ref: ItemRef, tracker: Tracker, profile: str) -> Tracker:

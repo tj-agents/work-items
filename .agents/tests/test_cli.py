@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -90,16 +91,41 @@ def test_create_prints_the_created_item_and_parses_the_parent_ref(
     )
     captured: dict[str, Any] = {}
 
-    def fake_create(self: GitHubTracker, title: str, body: str, parent: ItemRef | None) -> Item:
-        captured.update(title=title, body=body, parent=parent)
+    def fake_create(
+        self: GitHubTracker,
+        title: str,
+        body: str,
+        parent: ItemRef | None,
+        fields: Mapping[str, str],
+    ) -> Item:
+        captured.update(title=title, body=body, parent=parent, fields=dict(fields))
         return created_item
 
     monkeypatch.setattr(GitHubTracker, "create", fake_create)
-    code, result = run(capsys, "create", "--title", "New feature", "--body", "Details", "--parent", "100")
+    code, result = run(
+        capsys,
+        "create",
+        "--title",
+        "New feature",
+        "--body",
+        "Details",
+        "--parent",
+        "100",
+        "--field",
+        "attribution=TechPlatform",
+    )
     assert code == 0
     assert result == created_item.to_json()
     assert captured == {
         "title": "New feature",
         "body": "Details",
         "parent": ItemRef("github", "github.com/tj-agents/core", "100"),
+        "fields": {"attribution": "TechPlatform"},
     }
+
+
+def test_create_rejects_a_field_without_a_value(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as raised:
+        cli.main(["create", "--title", "New feature", "--field", "attribution"])
+    assert raised.value.code == 2
+    assert "expected NAME=VALUE" in capsys.readouterr().err

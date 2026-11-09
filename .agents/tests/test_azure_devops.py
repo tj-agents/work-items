@@ -218,7 +218,7 @@ def test_linked_prs_read_azure_repos_github_artifacts_and_hyperlinks() -> None:
 
 def test_create_places_the_item_in_to_do() -> None:
     fake = FakeAzure()
-    item = tracker(fake, work_item_type="Bug").create("Fix login", "Details", None)
+    item = tracker(fake, work_item_type="Bug").create("Fix login", "Details", None, {})
     assert fake.created_type == "Bug"
     assert fake.created == [
         {"op": "add", "path": "/fields/System.Title", "value": "Fix login"},
@@ -229,7 +229,7 @@ def test_create_places_the_item_in_to_do() -> None:
 
 def test_create_files_the_item_under_the_profile_area_path() -> None:
     fake = FakeAzure()
-    tracker(fake, work_item_type="Bug", area_path="Product\\Team").create("Fix login", "", None)
+    tracker(fake, work_item_type="Bug", area_path="Product\\Team").create("Fix login", "", None, {})
     assert fake.created is not None
     assert {"op": "add", "path": "/fields/System.AreaPath", "value": "Product\\Team"} in fake.created
 
@@ -237,7 +237,7 @@ def test_create_files_the_item_under_the_profile_area_path() -> None:
 def test_create_with_an_azure_parent_adds_a_hierarchy_relation() -> None:
     fake = FakeAzure()
     parent = ItemRef("azure-devops", "dev.azure.com/contoso", "10")
-    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent)
+    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent, {})
     assert fake.relations == [
         {
             "rel": "System.LinkTypes.Hierarchy-Reverse",
@@ -249,7 +249,7 @@ def test_create_with_an_azure_parent_adds_a_hierarchy_relation() -> None:
 def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
     fake = FakeAzure()
     parent = ItemRef("github", "github.com/tj-agents/core", "100")
-    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent)
+    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent, {})
     assert fake.created == [
         {"op": "add", "path": "/fields/System.Title", "value": "Fix login"},
         {
@@ -261,6 +261,36 @@ def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
     assert fake.relations == []
 
 
+ATTRIBUTION = {"attribution": {"field": "Custom.Attribution", "values": ["TechOps", "TechPlatform"]}}
+
+
+def test_create_sets_each_declared_field() -> None:
+    fake = FakeAzure()
+    tracker(fake, work_item_type="Bug", create_fields=ATTRIBUTION).create(
+        "Fix login", "", None, {"attribution": "TechPlatform"}
+    )
+    assert fake.created is not None
+    assert {"op": "add", "path": "/fields/Custom.Attribution", "value": "TechPlatform"} in fake.created
+
+
+@pytest.mark.parametrize("fields", [{}, {"attribution": "Elsewhere"}])
+def test_create_without_a_valid_declared_field_lists_its_values(fields: dict[str, str]) -> None:
+    fake = FakeAzure()
+    with pytest.raises(ConfigError, match=r"--field attribution=<TechOps\|TechPlatform>"):
+        tracker(fake, work_item_type="Bug", create_fields=ATTRIBUTION).create("Fix login", "", None, fields)
+    assert fake.created is None
+
+
+def test_create_rejects_an_undeclared_field() -> None:
+    with pytest.raises(ConfigError, match="no create field colour"):
+        tracker(FakeAzure(), work_item_type="Bug").create("Fix login", "", None, {"colour": "red"})
+
+
+def test_a_malformed_create_field_declaration_is_a_config_error() -> None:
+    with pytest.raises(ConfigError, match="create field `attribution`"):
+        tracker(FakeAzure(), create_fields={"attribution": {"field": "Custom.Attribution"}})
+
+
 def test_create_without_a_configured_work_item_type_errors() -> None:
     with pytest.raises(ConfigError, match="work_item_type"):
-        tracker(FakeAzure()).create("Fix login", "", None)
+        tracker(FakeAzure()).create("Fix login", "", None, {})

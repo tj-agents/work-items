@@ -196,7 +196,7 @@ def test_linked_prs_combine_closing_references_and_linked_comments() -> None:
 def test_create_places_the_issue_on_the_board_in_to_do() -> None:
     fake = FakeGitHub(cards=0)
     fake.linked = 1
-    item = tracker(fake).create("New feature", "Details", None)
+    item = tracker(fake).create("New feature", "Details", None, {})
     assert fake.created == {"title": "New feature", "body": "Details"}
     assert fake.sub_issues == []
     assert (str(item.ref), item.state) == ("github:github.com/tj-agents/core:500", State.TO_DO)
@@ -206,7 +206,7 @@ def test_create_with_a_github_parent_adds_a_sub_issue() -> None:
     fake = FakeGitHub(cards=0)
     fake.linked = 1
     parent = ItemRef("github", "github.com/tj-agents/core", "100")
-    tracker(fake).create("New feature", "Details", parent)
+    tracker(fake).create("New feature", "Details", parent, {})
     assert fake.sub_issues == [("repos/tj-agents/core/issues/100/sub_issues", 90001)]
     assert fake.created == {"title": "New feature", "body": "Details"}
 
@@ -215,7 +215,7 @@ def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
     fake = FakeGitHub(cards=0)
     fake.linked = 1
     parent = ItemRef("azure-devops", "dev.azure.com/contoso", "42")
-    tracker(fake).create("New feature", "Details", parent)
+    tracker(fake).create("New feature", "Details", parent, {})
     assert fake.created == {
         "title": "New feature",
         "body": "Details\nParent: azure-devops:dev.azure.com/contoso:42",
@@ -223,7 +223,13 @@ def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
     assert fake.sub_issues == []
 
 
+def test_create_refuses_create_fields() -> None:
+    fake = FakeGitHub()
+    with pytest.raises(ConfigError, match="takes no create fields: attribution"):
+        tracker(fake).create("New feature", "", None, {"attribution": "TechOps"})
+
+
 def test_create_without_a_github_scope_errors() -> None:
     github = GitHubTracker({}, None)
     with pytest.raises(ConfigError, match=r"github\.com repository scope"):
-        github.create("New feature", "", None)
+        github.create("New feature", "", None, {})
