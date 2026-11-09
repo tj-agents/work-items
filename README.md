@@ -1,7 +1,11 @@
 # Work items
 
 One work-item tracker interface, its adapters and the `tj item` CLI, published as the `tj_work_items` package
-from `packages/tj-work-items`.
+from `packages/tj-work-items`. The lifecycle commands in [`tj-agents/agent`](https://github.com/tj-agents/agent)
+(`tj start`, `status`, `closeout`) and their skills move a card by calling `tj item` rather than talking to
+GitHub or Azure DevOps directly; a project's profile (`personal`, or `work` resolving to the current employer
+profile such as `infonetica`) selects which adapter and settings apply, so the same verb moves a GitHub
+Projects card for a personal repository and an Azure DevOps work item for a work one.
 
 ```text
 tj item resolve <ref> [--body]          tj item comment <ref> --body-file <file>
