@@ -11,7 +11,7 @@ Projects card for a personal repository and an Azure DevOps work item for a work
 tj item resolve <ref> [--body]          tj item comment <ref> --body-file <file>
 tj item mine                            tj item link <ref> <pull-request-url>
 tj item progress <ref> --state "In Review"   tj item prs <ref>
-tj item create --title TITLE [--body BODY] [--parent <ref>]
+tj item create --title TITLE [--body BODY] [--parent <ref>] [--field NAME=VALUE]
 ```
 
 `tj` dispatches `tj item` to the `tj-item` console script. Install it with

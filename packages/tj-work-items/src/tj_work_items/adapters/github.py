@@ -158,7 +158,9 @@ class GitHubTracker:
     def resolve(self, ref: ItemRef) -> Item:
         return self._item(self._issue(ref))
 
-    def create(self, title: str, body: str, parent: ItemRef | None) -> Item:
+    def create(self, title: str, body: str, parent: ItemRef | None, fields: Mapping[str, str]) -> Item:
+        if fields:
+            raise ConfigError(f"a GitHub issue takes no create fields: {', '.join(sorted(fields))}")
         scope = self.default_scope()
         if scope is None or self.repository is None:
             raise ConfigError("creating a GitHub issue needs a github.com repository scope")
