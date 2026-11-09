@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 from tj_work_items import cli, profiles
-from tj_work_items.tracker import Repository
+from tj_work_items.refs import ItemRef
+from tj_work_items.states import State
+from tj_work_items.tracker import Item, Repository
 
 
 @pytest.fixture
@@ -70,3 +73,59 @@ def test_prs_reports_all_merged_only_when_every_linked_pr_merged(
     assert [pull["state"] for pull in result["prs"]] == ["merged", "open"]
     monkeypatch.setattr(GitHubTracker, "linked_prs", lambda self, ref: [])
     assert run(capsys, "prs", "461")[1]["all_merged"] is False
+
+
+@pytest.mark.usefixtures("offline")
+def test_create_prints_the_created_item_and_parses_the_parent_ref(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tj_work_items.adapters.github import GitHubTracker
+
+    created_item = Item(
+        ref=ItemRef("github", "github.com/tj-agents/core", "500"),
+        title="New feature",
+        url="https://github.com/tj-agents/core/issues/500",
+        native_state="Todo",
+        state=State.TO_DO,
+        kind=None,
+    )
+    captured: dict[str, Any] = {}
+
+    def fake_create(
+        self: GitHubTracker,
+        title: str,
+        body: str,
+        parent: ItemRef | None,
+        fields: Mapping[str, str],
+    ) -> Item:
+        captured.update(title=title, body=body, parent=parent, fields=dict(fields))
+        return created_item
+
+    monkeypatch.setattr(GitHubTracker, "create", fake_create)
+    code, result = run(
+        capsys,
+        "create",
+        "--title",
+        "New feature",
+        "--body",
+        "Details",
+        "--parent",
+        "100",
+        "--field",
+        "attribution=TechPlatform",
+    )
+    assert code == 0
+    assert result == created_item.to_json()
+    assert captured == {
+        "title": "New feature",
+        "body": "Details",
+        "parent": ItemRef("github", "github.com/tj-agents/core", "100"),
+        "fields": {"attribution": "TechPlatform"},
+    }
+
+
+def test_create_rejects_a_field_without_a_value(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as raised:
+        cli.main(["create", "--title", "New feature", "--field", "attribution"])
+    assert raised.value.code == 2
+    assert "expected NAME=VALUE" in capsys.readouterr().err

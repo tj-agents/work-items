@@ -7,7 +7,7 @@ import pytest
 from tj_work_items.adapters.github import GitHubTracker
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import Repository, TrackerError
+from tj_work_items.tracker import ConfigError, Repository, TrackerError
 
 REF = ItemRef("github", "github.com/tj-agents/core", "461")
 PULL_NODE = {
@@ -23,6 +23,7 @@ OPTIONS = [{"id": name.lower(), "name": name} for name in ("Todo", "In Progress"
 class FakeGitHub:
     def __init__(self, *, cards: int = 1, options: list[dict[str, str]] = OPTIONS) -> None:
         self.state = "OPEN"
+        self.number = 461
         self.statuses = ["Todo"] * cards
         self.options = options
         self.comments: list[str] = []
@@ -30,13 +31,15 @@ class FakeGitHub:
         self.linked = 0
         self.closing = False
         self.calls: list[list[str]] = []
+        self.created: dict[str, Any] | None = None
+        self.sub_issues: list[tuple[str, int]] = []
 
     def issue(self) -> dict[str, Any]:
         return {
             "id": "I_1",
-            "number": 461,
+            "number": self.number,
             "title": "Shared items",
-            "url": "https://github.com/tj-agents/core/issues/461",
+            "url": f"https://github.com/tj-agents/core/issues/{self.number}",
             "state": self.state,
             "body": "Body",
             "issueType": {"name": "Task"} if self.labels else {"name": "Feature"},
@@ -91,8 +94,17 @@ class FakeGitHub:
             self.state = "CLOSED" if body["state"] == "closed" else "OPEN"
             return "{}"
         if arguments[1:3] == ["-X", "POST"]:
-            self.comments.append(body["body"])
-            return "{}"
+            path = arguments[3]
+            if path.endswith("/comments"):
+                self.comments.append(body["body"])
+                return "{}"
+            if path.endswith("/sub_issues"):
+                self.sub_issues.append((path, body["sub_issue_id"]))
+                return "{}"
+            self.created = body
+            self.number = 500
+            self.state = "OPEN"
+            return json.dumps({"number": 500, "id": 90001, "node_id": "I_new"})
         return json.dumps([{"body": comment} for comment in self.comments])
 
 
@@ -179,3 +191,45 @@ def test_linked_prs_combine_closing_references_and_linked_comments() -> None:
         ("https://github.com/tj-agents/core/pull/9", "merged", "Fix/It"),
         ("https://github.com/tj-agents/core/pull/12", "merged", "Fix/It"),
     ]
+
+
+def test_create_places_the_issue_on_the_board_in_to_do() -> None:
+    fake = FakeGitHub(cards=0)
+    fake.linked = 1
+    item = tracker(fake).create("New feature", "Details", None, {})
+    assert fake.created == {"title": "New feature", "body": "Details"}
+    assert fake.sub_issues == []
+    assert (str(item.ref), item.state) == ("github:github.com/tj-agents/core:500", State.TO_DO)
+
+
+def test_create_with_a_github_parent_adds_a_sub_issue() -> None:
+    fake = FakeGitHub(cards=0)
+    fake.linked = 1
+    parent = ItemRef("github", "github.com/tj-agents/core", "100")
+    tracker(fake).create("New feature", "Details", parent, {})
+    assert fake.sub_issues == [("repos/tj-agents/core/issues/100/sub_issues", 90001)]
+    assert fake.created == {"title": "New feature", "body": "Details"}
+
+
+def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
+    fake = FakeGitHub(cards=0)
+    fake.linked = 1
+    parent = ItemRef("azure-devops", "dev.azure.com/contoso", "42")
+    tracker(fake).create("New feature", "Details", parent, {})
+    assert fake.created == {
+        "title": "New feature",
+        "body": "Details\nParent: azure-devops:dev.azure.com/contoso:42",
+    }
+    assert fake.sub_issues == []
+
+
+def test_create_refuses_create_fields() -> None:
+    fake = FakeGitHub()
+    with pytest.raises(ConfigError, match="takes no create fields: attribution"):
+        tracker(fake).create("New feature", "", None, {"attribution": "TechOps"})
+
+
+def test_create_without_a_github_scope_errors() -> None:
+    github = GitHubTracker({}, None)
+    with pytest.raises(ConfigError, match=r"github\.com repository scope"):
+        github.create("New feature", "", None, {})
