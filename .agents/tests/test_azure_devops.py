@@ -227,6 +227,13 @@ def test_create_places_the_item_in_to_do() -> None:
     assert (item.title, item.state, fake.patches) == ("Fix login", State.TO_DO, [])
 
 
+def test_create_files_the_item_under_the_profile_area_path() -> None:
+    fake = FakeAzure()
+    tracker(fake, work_item_type="Bug", area_path="Product\\Team").create("Fix login", "", None)
+    assert fake.created is not None
+    assert {"op": "add", "path": "/fields/System.AreaPath", "value": "Product\\Team"} in fake.created
+
+
 def test_create_with_an_azure_parent_adds_a_hierarchy_relation() -> None:
     fake = FakeAzure()
     parent = ItemRef("azure-devops", "dev.azure.com/contoso", "10")
