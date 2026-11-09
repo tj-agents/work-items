@@ -155,6 +155,8 @@ class AzureDevOpsTracker:
             {"op": "add", "path": "/fields/System.Title", "value": title},
             {"op": "add", "path": "/fields/System.Description", "value": description},
         ]
+        if isinstance(self.area_path, str):
+            patch.append({"op": "add", "path": "/fields/System.AreaPath", "value": self.area_path})
         url = (
             f"https://dev.azure.com/{self.organization}/{quote(self.project)}"
             f"/_apis/wit/workitems/${quote(self.work_item_type)}?api-version=7.1"
