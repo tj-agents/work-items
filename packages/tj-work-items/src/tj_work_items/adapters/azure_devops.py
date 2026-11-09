@@ -15,7 +15,15 @@ from urllib.request import Request, urlopen
 from tj_work_items.adapters.github import Runner, gh, github_pull, pull_location, pull_request
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Item, PullRequest, Repository, TrackerError, kind_for
+from tj_work_items.tracker import (
+    ConfigError,
+    Item,
+    PullRequest,
+    Repository,
+    TrackerError,
+    kind_for,
+    parent_note,
+)
 
 AZURE_DEVOPS_RESOURCE = "499b84ac-1321-427f-aa17-267ca6975798"
 PAT_VARIABLE = "AZURE_DEVOPS_EXT_PAT"
@@ -107,6 +115,8 @@ class AzureDevOpsTracker:
         self.area_path = settings.get("area_path")
         self.states: Mapping[str, Any] = settings.get("states", {})
         self.kinds = dict(settings.get("kinds", {}))
+        work_item_type = settings.get("work_item_type")
+        self.work_item_type = work_item_type if isinstance(work_item_type, str) else None
         self.send = send or http_sender(self._authorization(settings.get("tenant")))
         self._type_states: dict[tuple[str, str], list[dict[str, str]]] = {}
         self.run = run
@@ -134,6 +144,27 @@ class AzureDevOpsTracker:
 
     def resolve(self, ref: ItemRef) -> Item:
         return self._item(self._work_item(ref))
+
+    def create(self, title: str, body: str, parent: ItemRef | None) -> Item:
+        if self.work_item_type is None:
+            raise ConfigError("an azure-devops profile needs a `work_item_type` setting to create work items")
+        description = body
+        if parent is not None and parent.provider != self.provider:
+            description = parent_note(body, parent)
+        patch = [
+            {"op": "add", "path": "/fields/System.Title", "value": title},
+            {"op": "add", "path": "/fields/System.Description", "value": description},
+        ]
+        url = (
+            f"https://dev.azure.com/{self.organization}/{quote(self.project)}"
+            f"/_apis/wit/workitems/${quote(self.work_item_type)}?api-version=7.1"
+        )
+        created = self.send("POST", url, patch, "application/json-patch+json")
+        ref = ItemRef(self.provider, self.default_scope() or "", str(created["id"]))
+        item = self.transition(ref, State.TO_DO)
+        if parent is not None and parent.provider == self.provider:
+            self._link_parent(ref, parent)
+        return item
 
     def list_mine(self) -> list[Item]:
         clauses = ["[System.TeamProject] = @project", "[System.AssignedTo] = @Me"]
@@ -187,6 +218,22 @@ class AzureDevOpsTracker:
         patch = [
             {"op": "test", "path": "/rev", "value": raw["rev"]},
             {"op": "add", "path": "/relations/-", "value": {"rel": "Hyperlink", "url": url}},
+        ]
+        self.send("PATCH", self._item_url(ref), patch, "application/json-patch+json")
+
+    def _link_parent(self, ref: ItemRef, parent: ItemRef) -> None:
+        organization = self._organization(parent)
+        raw = self._work_item(ref)
+        patch = [
+            {"op": "test", "path": "/rev", "value": raw["rev"]},
+            {
+                "op": "add",
+                "path": "/relations/-",
+                "value": {
+                    "rel": "System.LinkTypes.Hierarchy-Reverse",
+                    "url": f"https://dev.azure.com/{organization}/_apis/wit/workItems/{parent.id}",
+                },
+            },
         ]
         self.send("PATCH", self._item_url(ref), patch, "application/json-patch+json")
 

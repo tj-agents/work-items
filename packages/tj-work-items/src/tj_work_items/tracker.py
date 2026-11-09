@@ -69,6 +69,8 @@ class Tracker(Protocol):
 
     def resolve(self, ref: ItemRef) -> Item: ...
 
+    def create(self, title: str, body: str, parent: ItemRef | None) -> Item: ...
+
     def list_mine(self) -> list[Item]: ...
 
     def transition(self, ref: ItemRef, state: State) -> Item: ...
@@ -88,6 +90,11 @@ class TrackerType(Protocol):
     def parse_url(url: str) -> ItemRef | None: ...
 
     def __call__(self, settings: Mapping[str, Any], repository: Repository | None) -> Tracker: ...
+
+
+def parent_note(body: str, parent: ItemRef) -> str:
+    note = f"Parent: {parent}"
+    return f"{body}\n{note}" if body else note
 
 
 def kind_for(native: str | None, kinds: Mapping[str, str]) -> str | None:

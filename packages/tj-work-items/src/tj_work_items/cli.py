@@ -3,14 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from tj_work_items import adapters, profiles
 from tj_work_items.refs import ItemRef, parse_ref
 from tj_work_items.states import State
-from tj_work_items.tracker import ConfigError, Tracker, TrackerError
+from tj_work_items.tracker import ConfigError, Tracker, TrackerError, TrackerType
 
 EXIT_USAGE = 2
 EXIT_TRACKER = 3
@@ -38,6 +38,10 @@ def parser() -> argparse.ArgumentParser:
     link.add_argument("url")
     prs = actions.add_parser("prs", help="list the pull requests linked to a work item")
     prs.add_argument("ref")
+    create = actions.add_parser("create", help="create a work item")
+    create.add_argument("--title", required=True)
+    create.add_argument("--body", default="")
+    create.add_argument("--parent", help="ref to link the new item under")
     actions.add_parser("profile", help="show the profile and tracker selected for this repository")
     return root
 
@@ -51,6 +55,8 @@ def run(arguments: argparse.Namespace) -> Any:
         return {"profile": profile.name, "tracker": profile.tracker, "scope": tracker.default_scope()}
     if arguments.action == "mine":
         return [item.to_json() for item in tracker.list_mine()]
+    if arguments.action == "create":
+        return _create(tracker, trackers, arguments)
     default = tracker.default_scope()
     ref = parse_ref(
         arguments.ref,
@@ -66,6 +72,20 @@ def run(arguments: argparse.Namespace) -> Any:
         "prs": lambda: _prs(target, ref),
     }
     return actions[arguments.action]()
+
+
+def _create(
+    tracker: Tracker, trackers: Mapping[str, TrackerType], arguments: argparse.Namespace
+) -> dict[str, Any]:
+    default = tracker.default_scope()
+    parent: ItemRef | None = None
+    if arguments.parent is not None:
+        parent = parse_ref(
+            arguments.parent,
+            None if default is None else (tracker.provider, default),
+            [kind.parse_url for kind in trackers.values()],
+        )
+    return tracker.create(arguments.title, arguments.body, parent).to_json()
 
 
 def _tracker_for(ref: ItemRef, tracker: Tracker, profile: str) -> Tracker:
