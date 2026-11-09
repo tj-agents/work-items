@@ -25,22 +25,37 @@ class FakeAzure:
         self.relations: list[dict[str, str]] = []
         self.comments: list[str] = []
         self.patches: list[str] = []
+        self.id = 42
+        self.title = "Fix login"
+        self.description = ""
+        self.created: list[dict[str, Any]] | None = None
+        self.created_type: str | None = None
 
     def raw(self) -> dict[str, Any]:
         return {
-            "id": 42,
+            "id": self.id,
             "rev": self.rev,
             "fields": {
-                "System.Title": "Fix login",
+                "System.Title": self.title,
                 "System.State": self.state,
                 "System.WorkItemType": "Bug",
                 "System.TeamProject": "Product",
+                "System.Description": self.description,
                 "System.AssignedTo": {"uniqueName": "tommy@contoso.com"},
             },
             "relations": self.relations,
         }
 
     def __call__(self, method: str, url: str, body: Any, content_type: str) -> Any:
+        if method == "POST" and "/workitems/$" in url:
+            self.created_type = url.split("/workitems/$", 1)[1].split("?", 1)[0]
+            self.created = body
+            self.id, self.rev, self.state = 777, 1, "New"
+            self.title = next(op["value"] for op in body if op["path"] == "/fields/System.Title")
+            self.description = next(
+                (op["value"] for op in body if op["path"] == "/fields/System.Description"), ""
+            )
+            return self.raw()
         if "/pullrequests/" in url:
             repository = {"webUrl": "https://dev.azure.com/contoso/Product/_git/app"}
             return {
@@ -199,3 +214,46 @@ def test_linked_prs_read_azure_repos_github_artifacts_and_hyperlinks() -> None:
         ("https://github.com/contoso/two/pull/5", "merged", "AB#42"),
         ("https://github.com/contoso/three/pull/8", "merged", "AB#42"),
     ]
+
+
+def test_create_places_the_item_in_to_do() -> None:
+    fake = FakeAzure()
+    item = tracker(fake, work_item_type="Bug").create("Fix login", "Details", None)
+    assert fake.created_type == "Bug"
+    assert fake.created == [
+        {"op": "add", "path": "/fields/System.Title", "value": "Fix login"},
+        {"op": "add", "path": "/fields/System.Description", "value": "Details"},
+    ]
+    assert (item.title, item.state, fake.patches) == ("Fix login", State.TO_DO, [])
+
+
+def test_create_with_an_azure_parent_adds_a_hierarchy_relation() -> None:
+    fake = FakeAzure()
+    parent = ItemRef("azure-devops", "dev.azure.com/contoso", "10")
+    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent)
+    assert fake.relations == [
+        {
+            "rel": "System.LinkTypes.Hierarchy-Reverse",
+            "url": "https://dev.azure.com/contoso/_apis/wit/workItems/10",
+        }
+    ]
+
+
+def test_create_with_a_foreign_parent_appends_a_body_note() -> None:
+    fake = FakeAzure()
+    parent = ItemRef("github", "github.com/tj-agents/core", "100")
+    tracker(fake, work_item_type="Bug").create("Fix login", "Details", parent)
+    assert fake.created == [
+        {"op": "add", "path": "/fields/System.Title", "value": "Fix login"},
+        {
+            "op": "add",
+            "path": "/fields/System.Description",
+            "value": "Details\nParent: github:github.com/tj-agents/core:100",
+        },
+    ]
+    assert fake.relations == []
+
+
+def test_create_without_a_configured_work_item_type_errors() -> None:
+    with pytest.raises(ConfigError, match="work_item_type"):
+        tracker(FakeAzure()).create("Fix login", "", None)
