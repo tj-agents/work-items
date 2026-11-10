@@ -1,6 +1,6 @@
 ---
 name: item
-description: Use when reading, creating, listing, moving, commenting on or linking tracker items and PRs through the repository's tj item profile.
+description: Use when reading, creating, listing, moving or commenting on tracker items, or linking a PR to or listing an item's PRs through its tj item profile.
 kind: utility
 domain: work-items
 profile: core
