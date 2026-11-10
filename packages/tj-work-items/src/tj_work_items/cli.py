@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, assert_never
@@ -89,34 +89,38 @@ def run(arguments: argparse.Namespace) -> Any:
             return [item.to_json() for item in tracker.list_mine()]
         case Action.CREATE:
             return _create(tracker, trackers, arguments)
-        case Action.RESOLVE | Action.PROGRESS | Action.COMMENT | Action.LINK | Action.PRS:
-            return _run_item_action(action, tracker, trackers, profile.name, arguments)
+        case Action.RESOLVE:
+            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
+            return target.resolve(ref).to_json(body=arguments.body)
+        case Action.PROGRESS:
+            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
+            return target.transition(ref, State.parse(arguments.state)).to_json()
+        case Action.COMMENT:
+            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
+            return _comment(target, ref, arguments)
+        case Action.LINK:
+            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
+            return _link(target, ref, arguments.url)
+        case Action.PRS:
+            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
+            return _prs(target, ref)
         case unexpected:
             assert_never(unexpected)
 
 
-def _run_item_action(
-    action: Action,
+def _item_target(
     tracker: Tracker,
     trackers: Mapping[str, TrackerType],
     profile: str,
-    arguments: argparse.Namespace,
-) -> Any:
+    reference: str,
+) -> tuple[Tracker, ItemRef]:
     default = tracker.default_scope()
     ref = parse_ref(
-        arguments.ref,
+        reference,
         None if default is None else (tracker.provider, default),
         [kind.parse_url for kind in trackers.values()],
     )
-    target = _tracker_for(ref, tracker, profile)
-    actions: Mapping[Action, Callable[[], Any]] = {
-        Action.RESOLVE: lambda: target.resolve(ref).to_json(body=arguments.body),
-        Action.PROGRESS: lambda: target.transition(ref, State.parse(arguments.state)).to_json(),
-        Action.COMMENT: lambda: _comment(target, ref, arguments),
-        Action.LINK: lambda: _link(target, ref, arguments.url),
-        Action.PRS: lambda: _prs(target, ref),
-    }
-    return actions[action]()
+    return _tracker_for(ref, tracker, profile), ref
 
 
 def _create(
