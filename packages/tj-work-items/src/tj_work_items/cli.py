@@ -90,37 +90,42 @@ def run(arguments: argparse.Namespace) -> Any:
         case Action.CREATE:
             return _create(tracker, trackers, arguments)
         case Action.RESOLVE:
-            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
-            return target.resolve(ref).to_json(body=arguments.body)
+            ref = _item_ref(tracker, trackers, profile.name, arguments.ref)
+            return tracker.resolve(ref).to_json(body=arguments.body)
         case Action.PROGRESS:
-            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
-            return target.transition(ref, State.parse(arguments.state)).to_json()
+            ref = _item_ref(tracker, trackers, profile.name, arguments.ref)
+            return tracker.transition(ref, State.parse(arguments.state)).to_json()
         case Action.COMMENT:
-            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
-            return _comment(target, ref, arguments)
+            ref = _item_ref(tracker, trackers, profile.name, arguments.ref)
+            return _comment(tracker, ref, arguments)
         case Action.LINK:
-            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
-            return _link(target, ref, arguments.url)
+            ref = _item_ref(tracker, trackers, profile.name, arguments.ref)
+            return _link(tracker, ref, arguments.url)
         case Action.PRS:
-            target, ref = _item_target(tracker, trackers, profile.name, arguments.ref)
-            return _prs(target, ref)
+            ref = _item_ref(tracker, trackers, profile.name, arguments.ref)
+            return _prs(tracker, ref)
         case unexpected:
             assert_never(unexpected)
 
 
-def _item_target(
+def _item_ref(
     tracker: Tracker,
     trackers: Mapping[str, TrackerType],
     profile: str,
     reference: str,
-) -> tuple[Tracker, ItemRef]:
+) -> ItemRef:
     default = tracker.default_scope()
     ref = parse_ref(
         reference,
         None if default is None else (tracker.provider, default),
         [kind.parse_url for kind in trackers.values()],
     )
-    return _tracker_for(ref, tracker, profile), ref
+    if ref.provider != tracker.provider:
+        raise ConfigError(
+            f"{ref} belongs to {ref.provider}, but profile {profile!r} uses {tracker.provider}; "
+            "pass --profile for that tracker"
+        )
+    return ref
 
 
 def _create(
@@ -142,15 +147,6 @@ def _field(value: str) -> tuple[str, str]:
     if not separator or not name or not field_value:
         raise argparse.ArgumentTypeError(f"expected NAME=VALUE, got {value!r}")
     return name, field_value
-
-
-def _tracker_for(ref: ItemRef, tracker: Tracker, profile: str) -> Tracker:
-    if ref.provider != tracker.provider:
-        raise ConfigError(
-            f"{ref} belongs to {ref.provider}, but profile {profile!r} uses {tracker.provider}; "
-            "pass --profile for that tracker"
-        )
-    return tracker
 
 
 def _comment(tracker: Tracker, ref: ItemRef, arguments: argparse.Namespace) -> dict[str, str]:
