@@ -14,7 +14,7 @@ members = ["packages/tj-work-items"]
 tj-work-items = { workspace = true }
 
 [dependency-groups]
-dev = ["mypy>=1.13,<2", "pytest>=8.4.2,<9", "ruff>=0.9,<1"]
+dev = ["mypy>=2.4.1", "pytest>=9.1.1", "ruff>=0.17.4", "pytest-socket>=0.7.0"]
 
 [tool.ruff]
 include = ["packages/tj-work-items/**/*.py", ".agents/tests/**/*.py"]
@@ -22,14 +22,54 @@ line-length = 110
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "UP", "B", "A", "BLE", "C4", "SIM", "PTH", "PIE", "RET", "RUF"]
+explicit-preview-rules = true
+preview = true
+select = ["E", "W", "F", "I", "N", "UP", "B", "A", "BLE", "C4", "SIM", "PTH", "PIE", "RET", "RUF", "PGH004", "ANN401", "G004", "PLW1514", "LOG002", "LOG015", "PLC2701", "ICN001", "TID251", "TRY300", "PT009", "PT011", "PT006", "PLR6301"]
 
 [tool.mypy]
+enable_error_code = ["ignore-without-code", "exhaustive-match"]
 strict = true
 warn_unreachable = true
 files = ["packages/tj-work-items/src", ".agents/tests"]
 
-[tool.pytest.ini_options]
+[tool.pytest]
+strict = true
 testpaths = [".agents/tests"]
-addopts = ["-ra", "--strict-config"]
+addopts = ["-ra", "--import-mode=importlib", "--disable-socket"]
 filterwarnings = ["error"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"unittest.TestCase" = { "msg" = "Use plain pytest functions and bare assertions." }
+"importlib.util.spec_from_file_location" = { "msg" = "Import the installed public API; do not load another checkout by path." }
+"sys.path" = { "msg" = "Install the declared dependency; do not modify the import search path." }
+
+[tool.ruff.lint.flake8-pytest-style]
+raises-require-match-for = ["*"]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/tj-work-items/src/tj_work_items/cli.py" = ["ANN401"]
+"packages/tj-work-items/src/tj_work_items/adapters/github.py" = ["ANN401"]
+"packages/tj-work-items/src/tj_work_items/adapters/azure_devops.py" = ["ANN401", "PLR6301"]
+".agents/tests/test_github.py" = ["ANN401"]
+".agents/tests/test_cli.py" = ["PT011"]
+".agents/tests/test_azure_devops.py" = ["ANN401"]
+
+[[tool.python-standards.exceptions]]
+path = "packages/tj-work-items/src/tj_work_items/adapters/__init__.py"
+rule = "PY008"
+reason = "Legacy package initializer imports private implementation names for its public API."
+
+[[tool.python-standards.exceptions]]
+path = "packages/tj-work-items/src/tj_work_items/adapters/azure_devops.py"
+rule = "PY016"
+reason = "Legacy host integration reads process state while resolving native configuration."
+
+[[tool.python-standards.exceptions]]
+path = "packages/tj-work-items/src/tj_work_items/adapters/github.py"
+rule = "PY013"
+reason = "Legacy launcher enum keeps filename and operation as constructor data."
+
+[[tool.python-standards.exceptions]]
+path = "packages/tj-work-items/src/tj_work_items/tracker.py"
+rule = "PY011"
+reason = "Legacy public exception hierarchy has not yet been consolidated under its package root."
