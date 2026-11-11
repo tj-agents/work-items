@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 import pytest
-from tj_work_items.adapters.github import GitHubTracker
+from tj_work_items.adapters.github import GitHubTracker, github_pulls
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
 from tj_work_items.tracker import ConfigError, Repository, TrackerError
@@ -68,6 +68,15 @@ class FakeGitHub:
                 issue = {"closedByPullRequestsReferences": {"nodes": nodes}}
                 return json.dumps({"data": {"repository": {"issue": issue}}})
             if "pullRequest(" in query:
+                if "owner0" in variables:
+                    repositories = {}
+                    for index in range(len(variables) // 3):
+                        owner = variables[f"owner{index}"]
+                        name = variables[f"name{index}"]
+                        number = variables[f"number{index}"]
+                        node = {**PULL_NODE, "url": f"https://github.com/{owner}/{name}/pull/{number}"}
+                        repositories[f"r{index}"] = {"pullRequest": node}
+                    return json.dumps({"data": repositories})
                 node = {**PULL_NODE, "url": f"https://github.com/tj-agents/core/pull/{variables['number']}"}
                 return json.dumps({"data": {"repository": {"pullRequest": node}}})
             if "addProjectV2ItemById" in query:
@@ -191,6 +200,52 @@ def test_linked_prs_combine_closing_references_and_linked_comments() -> None:
         ("https://github.com/tj-agents/core/pull/9", "merged", "Fix/It"),
         ("https://github.com/tj-agents/core/pull/12", "merged", "Fix/It"),
     ]
+
+
+def test_linked_prs_batch_unique_links_across_repositories() -> None:
+    fake = FakeGitHub()
+    fake.closing = True
+    fake.comments = [
+        "Linked: https://github.com/tj-agents/core/pull/9",
+        "Linked: https://github.com/tj-agents/core/pull/12",
+        "Linked: https://github.com/tj-agents/core/pull/12",
+        "Linked: https://github.com/tj-agents/agent/pull/135",
+        "Linked: https://example.com/tj-agents/core/pull/14",
+    ]
+    pulls = tracker(fake).linked_prs(REF)
+    assert len(fake.calls) == 3
+    assert [pull.url for pull in pulls] == [
+        "https://github.com/tj-agents/core/pull/9",
+        "https://github.com/tj-agents/core/pull/12",
+        "https://github.com/tj-agents/agent/pull/135",
+    ]
+
+
+def test_linked_prs_skip_lookup_when_closing_references_cover_every_link() -> None:
+    fake = FakeGitHub()
+    fake.closing = True
+    fake.comments = ["Linked: https://github.com/tj-agents/core/pull/9"]
+    assert len(tracker(fake).linked_prs(REF)) == 1
+    assert len(fake.calls) == 2
+
+
+def test_linked_prs_batch_omits_missing_repositories_and_pulls() -> None:
+    def run(_arguments: list[str], _payload: str | None) -> str:
+        return json.dumps(
+            {"data": {"r0": None, "r1": {"pullRequest": None}, "r2": {"pullRequest": PULL_NODE}}}
+        )
+
+    assert github_pulls(run, [("org", "missing", 1), ("org", "project", 2), ("org", "project", 9)]) == [
+        PULL_NODE
+    ]
+
+
+def test_linked_prs_batch_rejects_partial_graphql_errors() -> None:
+    def run(_arguments: list[str], _payload: str | None) -> str:
+        return json.dumps({"data": {"r0": {"pullRequest": PULL_NODE}}, "errors": ["Access denied"]})
+
+    with pytest.raises(TrackerError, match=r"GraphQL failed:.*Access denied"):
+        github_pulls(run, [("org", "project", 9)])
 
 
 def test_create_places_the_issue_on_the_board_in_to_do() -> None:
