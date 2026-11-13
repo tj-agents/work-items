@@ -24,6 +24,23 @@ def run(capsys: pytest.CaptureFixture[str], *arguments: str) -> tuple[int, Any]:
     return code, json.loads(captured.out if code == 0 else captured.err)
 
 
+@pytest.mark.parametrize(
+    ("action", "arguments"),
+    [
+        (cli.Action.RESOLVE, ("resolve", "1")),
+        (cli.Action.MINE, ("mine",)),
+        (cli.Action.PROGRESS, ("progress", "1", "--state", "To do")),
+        (cli.Action.COMMENT, ("comment", "1", "--body", "comment")),
+        (cli.Action.LINK, ("link", "1", "https://example.com")),
+        (cli.Action.PRS, ("prs", "1")),
+        (cli.Action.CREATE, ("create", "--title", "Title")),
+        (cli.Action.PROFILE, ("profile",)),
+    ],
+)
+def test_parser_sets_an_action_member(action: cli.Action, arguments: tuple[str, ...]) -> None:
+    assert cli.parser().parse_args(arguments).action is action
+
+
 @pytest.mark.usefixtures("offline")
 def test_profile_reports_the_github_default(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(capsys, "profile") == (
