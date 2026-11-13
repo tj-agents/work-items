@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
@@ -129,6 +129,36 @@ def github_pull(run: Runner, owner: str, name: str, number: int) -> Mapping[str,
     return found if isinstance(found, Mapping) else None
 
 
+def github_pulls(run: Runner, locations: Sequence[tuple[str, str, int]]) -> list[Mapping[str, Any]]:
+    variables: dict[str, str | int] = {}
+    declarations = []
+    fields = []
+    aliases = []
+    for index, (owner, name, number) in enumerate(dict.fromkeys(locations)):
+        alias = f"r{index}"
+        aliases.append(alias)
+        declarations.append(f"$owner{index}:String!,$name{index}:String!,$number{index}:Int!")
+        variables.update({f"owner{index}": owner, f"name{index}": name, f"number{index}": number})
+        fields.append(
+            f"{alias}:repository(owner:$owner{index},name:$name{index})"
+            + "{"
+            + f"pullRequest(number:$number{index})"
+            + "{"
+            + PULL_FIELDS
+            + "}}"
+        )
+    if not aliases:
+        return []
+    document = "query(" + ",".join(declarations) + "){" + " ".join(fields) + "}"
+    repositories = graphql(run, document, **variables)
+    pulls = []
+    for alias in aliases:
+        node = (repositories.get(alias) or {}).get("pullRequest")
+        if isinstance(node, Mapping):
+            pulls.append(node)
+    return pulls
+
+
 class GitHubTracker:
     provider: ClassVar[str] = "github"
 
@@ -236,15 +266,16 @@ class GitHubTracker:
         issue = self._graphql(CLOSING_PRS, owner=owner, name=name, number=int(ref.id))["repository"]["issue"]
         found = {node["url"]: pull_request(node) for node in issue["closedByPullRequestsReferences"]["nodes"]}
         comments = json.loads(self.run(["api", self._issue_path(ref) + "/comments?per_page=100"], None))
+        locations = []
         for comment in comments:
             text = comment.get("body", "")
             location = (
                 pull_location(text.removeprefix("Linked: ").strip()) if text.startswith("Linked: ") else None
             )
-            if location is not None:
-                node = github_pull(self.run, *location)
-                if node is not None:
-                    found.setdefault(node["url"], pull_request(node))
+            if location is not None and text.removeprefix("Linked: ").strip() not in found:
+                locations.append(location)
+        for node in github_pulls(self.run, locations):
+            found.setdefault(node["url"], pull_request(node))
         return list(found.values())
 
     def _issue(self, ref: ItemRef) -> dict[str, Any]:
