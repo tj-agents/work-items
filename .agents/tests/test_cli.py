@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from tj_work_items import cli, profiles
+from tj_work_items import cli, configuration, profiles
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
 from tj_work_items.tracker import Item, Repository
@@ -16,6 +16,9 @@ from tj_work_items.tracker import Item, Repository
 def offline(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(profiles, "repository_at", lambda cwd: Repository("github.com", "tj-agents/core"))
     monkeypatch.setattr(profiles, "installed_profiles", list)
+    monkeypatch.setattr(
+        configuration, "load", lambda cwd: configuration.Project(None, plugins=("personal@tj-agents",))
+    )
 
 
 def run(capsys: pytest.CaptureFixture[str], *arguments: str) -> tuple[int, Any]:
@@ -25,10 +28,15 @@ def run(capsys: pytest.CaptureFixture[str], *arguments: str) -> tuple[int, Any]:
 
 
 @pytest.mark.usefixtures("offline")
-def test_profile_reports_the_github_default(capsys: pytest.CaptureFixture[str]) -> None:
+def test_profile_reports_the_adopted_personal_policy(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(capsys, "profile") == (
         0,
-        {"profile": "github", "tracker": "github", "scope": "github.com/tj-agents/core"},
+        {
+            "profile": "personal",
+            "tracker": "github",
+            "scope": "github.com/tj-agents/core",
+            "creation": "allow",
+        },
     )
 
 
@@ -40,10 +48,12 @@ def test_unknown_state_exits_with_usage_error(capsys: pytest.CaptureFixture[str]
 
 
 @pytest.mark.usefixtures("offline")
-def test_reference_for_another_tracker_names_the_profile_option(capsys: pytest.CaptureFixture[str]) -> None:
+def test_reference_requiring_adapter_settings_names_the_missing_profile(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     code, error = run(capsys, "resolve", "https://dev.azure.com/contoso/P/_workitems/edit/1")
     assert code == cli.EXIT_USAGE
-    assert "--profile" in error["error"]
+    assert "azure-devops profile needs" in error["error"]
 
 
 @pytest.mark.usefixtures("offline")
@@ -54,6 +64,7 @@ def test_empty_comment_file_is_refused(capsys: pytest.CaptureFixture[str], tmp_p
     assert (code, error["error"]) == (cli.EXIT_USAGE, "comment text is empty")
 
 
+@pytest.mark.usefixtures("offline")
 def test_prs_reports_all_merged_only_when_every_linked_pr_merged(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

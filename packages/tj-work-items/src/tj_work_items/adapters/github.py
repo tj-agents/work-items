@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
-from tj_work_items.refs import ItemRef
+from tj_work_items.refs import ItemRef, github_url
 from tj_work_items.states import State
 from tj_work_items.tracker import (
     ConfigError,
@@ -171,14 +171,7 @@ class GitHubTracker:
 
     @staticmethod
     def parse_url(url: str) -> ItemRef | None:
-        parts = urlsplit(url)
-        segments = parts.path.strip("/").split("/")
-        if parts.hostname != "github.com" or len(segments) != 4:
-            return None
-        owner, name, kind, number = segments
-        if kind != "issues" or not number.isdigit():
-            return None
-        return ItemRef("github", f"github.com/{owner}/{name}".casefold(), number)
+        return github_url(url)
 
     def default_scope(self) -> str | None:
         if self.repository is None or self.repository.host != "github.com":
