@@ -48,10 +48,12 @@ def test_unknown_state_exits_with_usage_error(capsys: pytest.CaptureFixture[str]
 
 
 @pytest.mark.usefixtures("offline")
-def test_reference_for_another_tracker_names_the_profile_option(capsys: pytest.CaptureFixture[str]) -> None:
+def test_reference_requiring_adapter_settings_names_the_missing_profile(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     code, error = run(capsys, "resolve", "https://dev.azure.com/contoso/P/_workitems/edit/1")
     assert code == cli.EXIT_USAGE
-    assert "--profile" in error["error"]
+    assert "azure-devops profile needs" in error["error"]
 
 
 @pytest.mark.usefixtures("offline")

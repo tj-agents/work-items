@@ -12,7 +12,7 @@ from tj_work_items.adapters.azure_devops import AzureDevOpsTracker
 from tj_work_items.adapters.github import GitHubTracker
 from tj_work_items.refs import ItemRef
 from tj_work_items.states import State
-from tj_work_items.tracker import Item
+from tj_work_items.tracker import Item, PullRequest
 
 WORK = profiles.Profile(
     name="infonetica",
@@ -77,6 +77,37 @@ def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
 
 
 @pytest.mark.parametrize(
+    "parent", ["7", "github:github.com/tj-agents/agent:231", "https://tracker.example/42"]
+)
+def test_explicit_allow_cannot_supply_missing_project_creation_authority(
+    repository: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    parent: str,
+) -> None:
+    allow = profiles.Profile("other", "github", creation=profiles.CreationPolicy.ALLOW)
+    monkeypatch.setattr(profiles, "installed_profiles", lambda: [allow])
+    monkeypatch.setattr(adapters, "available", forbidden)
+    assert (
+        cli.main(
+            [
+                "--cwd",
+                str(repository),
+                "--profile",
+                "other",
+                "create",
+                "--title",
+                "x",
+                "--parent",
+                parent,
+            ]
+        )
+        == 2
+    )
+    assert "existing reference" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
     ("raw", "expected"),
     [
         (
@@ -97,6 +128,8 @@ def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
             ItemRef("azure-devops", "dev.azure.com/infonetica", "42"),
         ),
         ("jira:tracker.example:ABC-1", ItemRef("jira", "tracker.example", "ABC-1")),
+        ("jira:https://tracker.example:APP-12", ItemRef("jira", "https://tracker.example", "APP-12")),
+        ("url:invalid_scope:APP-12", ItemRef("url", "invalid_scope", "APP-12")),
     ],
 )
 def test_fully_qualified_reference_needs_no_profile_registry_or_network(
@@ -204,18 +237,22 @@ class CustomTracker(GitHubTracker):
 
 
 def test_new_registered_adapter_and_allow_profile_use_the_same_create_caller(
-    tmp_path: Path,
+    repository: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     profile = profiles.profile_from({"tracker": "custom", "creation": "allow"}, "custom")
     monkeypatch.setattr(profiles, "installed_profiles", lambda: [profile])
     monkeypatch.setattr(adapters, "available", lambda: {"custom": CustomTracker})
+    (repository / ".agents").mkdir()
+    (repository / ".agents/settings.json").write_text(
+        '{"configuration":{"work-items":{"profile":"custom"}}}', encoding="utf-8"
+    )
     assert (
         cli.main(
             [
                 "--cwd",
-                str(tmp_path),
+                str(repository),
                 "--profile",
                 "custom",
                 "create",
@@ -245,6 +282,18 @@ def test_custom_url_operation_uses_registered_parser_and_matching_profile(
     monkeypatch.setattr(adapters, "available", lambda: {"custom": CustomTracker})
     assert cli.main(["--cwd", str(tmp_path), "resolve", raw]) == 0
     assert json.loads(capsys.readouterr().out)["ref"] == "custom:tracker.example/team:8"
+
+
+def test_registered_url_provider_receives_its_explicit_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(CustomTracker, "provider", "url")
+    monkeypatch.setattr(profiles, "installed_profiles", lambda: [profiles.Profile("url-provider", "url")])
+    monkeypatch.setattr(adapters, "available", lambda: {"url": CustomTracker})
+    assert cli.main(["--cwd", str(tmp_path), "resolve", "url:invalid_scope:APP-12"]) == 0
+    assert json.loads(capsys.readouterr().out)["ref"] == "url:invalid_scope:APP-12"
 
 
 def test_adopted_personal_checkout_can_create(
@@ -324,3 +373,43 @@ def test_explicit_ref_selects_profile_by_scope_in_an_unrelated_checkout(
     monkeypatch.setattr(AzureDevOpsTracker, "resolve", resolve)
     assert cli.main(["--cwd", str(repository), "resolve", str(expected)]) == 0
     assert json.loads(capsys.readouterr().out)["ref"] == str(expected)
+
+
+@pytest.mark.parametrize("outside_project", [True, False])
+@pytest.mark.parametrize("installed", [True, False])
+def test_explicit_github_prs_selects_its_adapter_without_creation_authority(
+    repository: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    outside_project: bool,
+    installed: bool,
+) -> None:
+    cwd = repository.parent if outside_project else repository
+    monkeypatch.setattr(profiles, "installed_profiles", lambda: [WORK] if installed else [])
+    expected = ItemRef("github", "github.com/tj-agents/agent", "231")
+    seen: list[ItemRef] = []
+
+    def linked_prs(tracker: GitHubTracker, ref: ItemRef) -> list[PullRequest]:
+        assert tracker.provider == "github"
+        seen.append(ref)
+        return [PullRequest("https://github.com/tj-agents/agent/pull/232", "merged", "test")]
+
+    monkeypatch.setattr(GitHubTracker, "linked_prs", linked_prs)
+    monkeypatch.setattr(GitHubTracker, "create", forbidden)
+    assert cli.main(["--cwd", str(cwd), "prs", str(expected)]) == 0
+    assert seen == [expected]
+    assert json.loads(capsys.readouterr().out)["all_merged"] is True
+
+
+def test_explicit_adapter_resolution_does_not_enable_subsequent_create(
+    repository: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(profiles, "installed_profiles", list)
+    monkeypatch.setattr(GitHubTracker, "linked_prs", lambda tracker, ref: [])
+    assert cli.main(["--cwd", str(repository), "prs", "github:github.com/tj-agents/agent:231"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(adapters, "available", forbidden)
+    assert cli.main(["--cwd", str(repository), "create", "--title", "Denied"]) == 2
+    assert "existing reference" in capsys.readouterr().err

@@ -49,3 +49,37 @@ def test_explicit_reference_never_uses_the_default_provider() -> None:
     assert parse_ref("custom:tracker.example/team:ABC-1", ("github", "github.com/owner/repo")) == ItemRef(
         "custom", "tracker.example/team", "ABC-1"
     )
+
+
+@pytest.mark.parametrize(
+    "reference",
+    [
+        ItemRef("jira", "https://tracker.example", "APP-12"),
+        ItemRef("jira", "https://tracker.example:8443/project", "APP-12"),
+        ItemRef("url", "tenant", "APP-12"),
+        ItemRef("url", "1invalid-scheme", "APP-12"),
+        ItemRef("url", "scope_with_underscores", "APP-12"),
+        ItemRef("url", "https://tracker.example", "APP-12"),
+        ItemRef("url", "tenant:sub", "APP-12"),
+        ItemRef("url", "https", "//github.com/Acme/App/issues/00461"),
+        ItemRef("url", "HTTPS", "//Tracker.Example:443/items/42"),
+    ],
+)
+def test_qualified_reference_preserves_stored_identity(reference: ItemRef) -> None:
+    assert parse_ref(str(reference), None) == reference
+
+
+def test_direct_url_provider_fields_are_not_reparsed() -> None:
+    reference = ItemRef("url", "https://tracker.example", "APP-12:child")
+    assert reference.to_json() == {
+        "ref": "url:https://tracker.example:APP-12:child",
+        "provider": "url",
+        "scope": "https://tracker.example",
+        "native_id": "APP-12:child",
+    }
+
+
+def test_qualified_scope_ends_at_the_rightmost_colon() -> None:
+    assert parse_ref("jira:tracker.example:ABC-1:subtask", None) == ItemRef(
+        "jira", "tracker.example:ABC-1", "subtask"
+    )

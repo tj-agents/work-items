@@ -5,7 +5,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from urllib.parse import quote, unquote, urlsplit
 
-_QUALIFIED = re.compile(r"(?P<provider>[a-z][a-z0-9-]*):(?P<scope>[^\s:]+):(?P<id>[^\s/]+)")
+_QUALIFIED = re.compile(r"(?P<provider>[a-z][a-z0-9-]*):(?P<scope>\S+):(?P<id>[^\s:]+)")
+_NETWORK_URL = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://")
 _BARE = re.compile(r"(?:AB#|#)?(?P<id>[A-Za-z0-9][A-Za-z0-9_-]*)")
 
 
@@ -104,10 +105,18 @@ def parse_ref(
     url_parsers: Iterable[UrlParser] = (),
 ) -> ItemRef:
     value = text.strip()
-    if value.startswith("url:"):
-        return _url(value.removeprefix("url:"))
+    wrapped = value.removeprefix("url:")
+    if value.startswith("url:") and _NETWORK_URL.match(wrapped):
+        try:
+            _url(wrapped)
+        except ValueError:
+            # An invalid URL can still be an explicit provider:scope:id triple.
+            pass
+        else:
+            scheme, _, remainder = wrapped.partition(":")
+            return ItemRef("url", scheme, remainder)
     qualified = _QUALIFIED.fullmatch(value)
-    if qualified and "://" not in value:
+    if qualified and not _NETWORK_URL.match(value):
         return ItemRef(qualified["provider"], qualified["scope"], qualified["id"])
     bare = _BARE.fullmatch(value)
     if bare:
@@ -115,6 +124,8 @@ def parse_ref(
             raise ValueError(f"{value!r} needs a repository profile; pass a URL or provider:scope:id")
         return ItemRef(default[0], default[1], bare["id"])
     if ":" in value:
+        if value.startswith("url:"):
+            raise ValueError("URL reference needs a scope and native ID")
         opaque = _url(value)
         normalized = f"{opaque.scope}:{opaque.id}"
         for parse_url in (github_url, azure_devops_url, *url_parsers):

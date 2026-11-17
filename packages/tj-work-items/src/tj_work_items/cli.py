@@ -75,8 +75,12 @@ def run(arguments: argparse.Namespace) -> Any:
     else:
         profile = None
     trackers = adapters.available()
-    if ref is not None and ref.provider == "url":
-        ref = parse_ref(f"{ref.scope}:{ref.id}", None, [kind.parse_url for kind in trackers.values()])
+    if ref is not None and ref.provider == "url" and "url" not in trackers:
+        for kind in trackers.values():
+            parsed = kind.parse_url(f"{ref.scope}:{ref.id}")
+            if parsed is not None:
+                ref = parsed
+                break
     if ref is not None and ref.provider not in trackers:
         raise ConfigError(f"no tracker adapter named {ref.provider!r}; use reference to link this address")
     instances: dict[str, Tracker] = {}
