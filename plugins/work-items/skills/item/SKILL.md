@@ -1,10 +1,10 @@
 ---
 name: item
-description: Use when reading, creating, listing, moving or commenting on tracker items, or linking a PR to or listing an item's PRs through its tj item profile.
+description: Use when normalizing work-item references, reading, creating, listing, moving or commenting on tracker items, or linking a PR through the project's tj item profile.
 kind: utility
 domain: work-items
 profile: core
-applicability: any repository whose origin matches an installed work-item profile, or any GitHub repository
+applicability: addressable work-item references and repositories selecting a work-item profile
 requires: tj-item on PATH
 provenance: house
 ---

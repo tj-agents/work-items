@@ -10,11 +10,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote
 from urllib.request import Request, urlopen
 
 from tj_work_items.adapters.github import Runner, gh, github_pull, pull_location, pull_request
-from tj_work_items.refs import ItemRef
+from tj_work_items.refs import ItemRef, azure_devops_url
 from tj_work_items.states import State
 from tj_work_items.tracker import (
     ConfigError,
@@ -154,21 +154,7 @@ class AzureDevOpsTracker:
 
     @staticmethod
     def parse_url(url: str) -> ItemRef | None:
-        parts = urlsplit(url)
-        segments = parts.path.strip("/").split("/")
-        host = (parts.hostname or "").casefold()
-        if host == "dev.azure.com" and segments:
-            organization, rest = segments[0], segments[1:]
-        elif host.endswith(".visualstudio.com"):
-            organization, rest = host.removesuffix(".visualstudio.com"), segments
-        else:
-            return None
-        if "_workitems" not in rest:
-            return None
-        tail = rest[rest.index("_workitems") + 1 :]
-        if len(tail) != 2 or tail[0] != "edit" or not tail[1].isdigit():
-            return None
-        return ItemRef("azure-devops", f"dev.azure.com/{organization}".casefold(), tail[1])
+        return azure_devops_url(url)
 
     def default_scope(self) -> str | None:
         return f"dev.azure.com/{self.organization}".casefold()

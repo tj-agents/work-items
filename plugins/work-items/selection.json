@@ -13,8 +13,7 @@
       "kind": "utility",
       "profile": "core",
       "applicability": [
-        "any repository whose origin matches an installed work-item profile",
-        "or any GitHub repository"
+        "addressable work-item references and repositories selecting a work-item profile"
       ],
       "requires": [
         "tj-item on PATH"

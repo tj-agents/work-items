@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from tj_work_items.adapters.azure_devops import AzureDevOpsTracker
 from tj_work_items.adapters.github import GitHubTracker
-from tj_work_items.profiles import GITHUB_DEFAULT, Profile, parse_remote, select
+from tj_work_items.profiles import PERSONAL, Profile, parse_remote, select
 from tj_work_items.refs import ItemRef, parse_ref
 from tj_work_items.states import State
 from tj_work_items.tracker import ConfigError, Repository
@@ -49,9 +49,10 @@ def test_bare_ref_without_profile_scope_is_refused() -> None:
         parse_ref("461", None, PARSERS)
 
 
-def test_unknown_url_is_refused() -> None:
-    with pytest.raises(ValueError, match="no installed tracker adapter"):
-        parse_ref("https://example.com/browse/ABC-1", DEFAULT, PARSERS)
+def test_unknown_url_is_addressable_without_an_adapter() -> None:
+    assert parse_ref("https://example.com/browse/ABC-1", None) == ItemRef(
+        "url", "https", "//example.com/browse/ABC-1"
+    )
 
 
 @pytest.mark.parametrize("text", ["In Review", "in-review", "IN_REVIEW", "inreview"])
@@ -76,12 +77,24 @@ def test_remotes_parse_to_host_and_path(remote: str) -> None:
     assert parse_remote(remote) == Repository("github.com", "contoso/app")
 
 
-def test_profile_matched_by_origin_beats_the_github_default() -> None:
-    assert select(Repository("github.com", "contoso/app"), available=lambda: [WORK]) is WORK
+def test_profile_matched_by_origin() -> None:
+    assert select(Repository("github.com", "contoso/app"), available=lambda: [WORK]) == WORK
 
 
-def test_unmatched_github_origin_uses_the_github_default() -> None:
-    assert select(Repository("github.com", "tj-agents/core"), available=lambda: [WORK]) is GITHUB_DEFAULT
+def test_unmatched_github_origin_requires_a_profile() -> None:
+    with pytest.raises(ConfigError, match="no work-item profile matches"):
+        select(Repository("github.com", "tj-agents/core"), available=lambda: [WORK])
+
+
+def test_personal_adoption_selects_its_profile() -> None:
+    assert (
+        select(
+            Repository("github.com", "tj-agents/core"),
+            available=lambda: [WORK],
+            adopted=["personal@tj-agents"],
+        )
+        is PERSONAL
+    )
 
 
 def test_unmatched_non_github_origin_is_refused() -> None:
@@ -104,6 +117,5 @@ def test_item_ref_round_trips_its_text_form() -> None:
     assert parse_ref(str(ref), None, PARSERS) == ref
 
 
-def test_pull_request_urls_are_not_work_items() -> None:
-    with pytest.raises(ValueError, match="no installed tracker adapter"):
-        parse_ref("https://github.com/acme/widget/pull/461", DEFAULT, PARSERS)
+def test_pull_request_urls_are_opaque_addresses_not_github_issues() -> None:
+    assert parse_ref("https://github.com/acme/widget/pull/461", DEFAULT, PARSERS).provider == "url"
