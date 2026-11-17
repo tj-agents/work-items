@@ -166,7 +166,7 @@ def select(
     if "work@tj-agents" in plugins and project is None:
         raise ConfigError("no work-item profile matches this work project; install or configure its profile")
     selected = named(requested) if requested is not None else project
-    if provider is not None and requested is None:
+    if provider is not None and requested is None and not for_creation:
         candidates = [profile for profile in profiles if profile.tracker == provider]
         scoped = (
             [] if scope_for is None else [profile for profile in candidates if scope_for(profile) == scope]
@@ -179,14 +179,18 @@ def select(
             pass
         elif len(candidates) == 1:
             selected = candidates[0]
+        elif not candidates:
+            # An explicit address selects its adapter, but confers no creation authority.
+            selected = Profile(name=provider, tracker=provider)
         else:
             raise ConfigError(
                 f"no unique work-item profile for tracker {provider!r}; configure it or pass --profile"
             )
-    if selected is None:
+    if selected is None or (for_creation and project is None):
         raise ConfigError(
             "no work-item profile matches this repository; configure configuration.work-items.profile "
-            "in .agents/settings.json or install its profile package; use an existing reference"
+            "in .agents/settings.json or install its profile package; use an existing reference. "
+            "--profile cannot supply missing project creation authority"
         )
     if provider is not None and selected.tracker != provider:
         raise ConfigError(
