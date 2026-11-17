@@ -163,7 +163,7 @@ def select(
         raise ConfigError(f"several work-item profiles match this repository: {names_text}")
     if project is None:
         project = matching[0] if matching else PERSONAL if personal else None
-    if "work@tj-agents" in plugins and project is None:
+    if "work@tj-agents" in plugins and project is None and (provider is None or for_creation):
         raise ConfigError("no work-item profile matches this work project; install or configure its profile")
     selected = named(requested) if requested is not None else project
     if provider is not None and requested is None and not for_creation:

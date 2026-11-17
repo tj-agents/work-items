@@ -413,3 +413,32 @@ def test_explicit_adapter_resolution_does_not_enable_subsequent_create(
     monkeypatch.setattr(adapters, "available", forbidden)
     assert cli.main(["--cwd", str(repository), "create", "--title", "Denied"]) == 2
     assert "existing reference" in capsys.readouterr().err
+
+
+def test_explicit_refs_in_work_adoption_need_no_profile_but_bare_refs_and_create_do(
+    repository: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (repository / ".agents").mkdir()
+    (repository / ".agents/plugins.json").write_text(
+        '{"plugins":["work@tj-agents","infonetica@tj-agents"]}', encoding="utf-8"
+    )
+    monkeypatch.setattr(profiles, "installed_profiles", list)
+    expected = ItemRef("github", "github.com/tj-agents/agent", "231")
+    seen: list[ItemRef] = []
+
+    def linked_prs(tracker: GitHubTracker, ref: ItemRef) -> list[PullRequest]:
+        assert tracker.provider == expected.provider
+        seen.append(ref)
+        return []
+
+    monkeypatch.setattr(GitHubTracker, "linked_prs", linked_prs)
+    assert cli.main(["--cwd", str(repository), "prs", str(expected)]) == 0
+    assert seen == [expected]
+    assert json.loads(capsys.readouterr().out)["ref"] == str(expected)
+    assert cli.main(["--cwd", str(repository), "reference", "231"]) == 2
+    assert "no work-item profile matches this work project" in capsys.readouterr().err
+    monkeypatch.setattr(adapters, "available", forbidden)
+    assert cli.main(["--cwd", str(repository), "create", "--title", "Denied"]) == 2
+    assert "no work-item profile matches this work project" in capsys.readouterr().err
