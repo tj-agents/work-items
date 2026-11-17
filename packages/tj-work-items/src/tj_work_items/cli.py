@@ -7,8 +7,8 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from tj_work_items import adapters, profiles
-from tj_work_items.refs import ItemRef, parse_ref
+from tj_work_items import adapters, configuration, profiles
+from tj_work_items.refs import ItemRef, is_bare, parse_ref
 from tj_work_items.states import State
 from tj_work_items.tracker import ConfigError, Tracker, TrackerError, TrackerType
 
@@ -18,9 +18,11 @@ EXIT_TRACKER = 3
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="tj item", description="Work items in the active profile's tracker")
-    root.add_argument("--profile", help="profile name; default: matched from the repository origin")
+    root.add_argument("--profile", help="profile name; creation still follows the project's policy")
     root.add_argument("--cwd", type=Path, default=Path.cwd(), help="repository directory")
     actions = root.add_subparsers(dest="action", required=True)
+    reference = actions.add_parser("reference", help="normalize an address without contacting its tracker")
+    reference.add_argument("ref")
     resolve = actions.add_parser("resolve", help="show one work item")
     resolve.add_argument("ref")
     resolve.add_argument("--body", action="store_true", help="include the description")
@@ -55,22 +57,68 @@ def parser() -> argparse.ArgumentParser:
 
 
 def run(arguments: argparse.Namespace) -> Any:
-    repository = profiles.repository_at(arguments.cwd)
-    profile = profiles.select(repository, arguments.profile)
+    explicit = getattr(arguments, "ref", None)
+    ref = parse_ref(explicit, None) if explicit is not None and not is_bare(explicit) else None
+    if arguments.action == "reference" and ref is not None:
+        return ref.to_json()
+    project = configuration.load(arguments.cwd)
+    repository = profiles.repository_at(project.root or arguments.cwd)
+    # Policy must be checked before loading or constructing any tracker adapter.
+    if arguments.action == "create":
+        profile = profiles.select(
+            repository,
+            arguments.profile,
+            configured=project.profile,
+            adopted=project.plugins,
+            for_creation=True,
+        )
+    else:
+        profile = None
     trackers = adapters.available()
-    tracker: Tracker = adapters.tracker_type(profile.tracker)(profile.settings, repository)
+    if ref is not None and ref.provider == "url":
+        ref = parse_ref(f"{ref.scope}:{ref.id}", None, [kind.parse_url for kind in trackers.values()])
+    if ref is not None and ref.provider not in trackers:
+        raise ConfigError(f"no tracker adapter named {ref.provider!r}; use reference to link this address")
+    instances: dict[str, Tracker] = {}
+
+    def tracker_for(selected: profiles.Profile) -> Tracker:
+        if selected.name not in instances:
+            kind = trackers.get(selected.tracker)
+            if kind is None:
+                raise ConfigError(f"no tracker adapter named {selected.tracker!r}; install its adapter")
+            instances[selected.name] = kind(selected.settings, repository)
+        return instances[selected.name]
+
+    if profile is None:
+        profile = profiles.select(
+            repository,
+            arguments.profile,
+            configured=project.profile,
+            adopted=project.plugins,
+            provider=None if ref is None else ref.provider,
+            scope=None if ref is None else ref.scope,
+            scope_for=None if ref is None else lambda selected: tracker_for(selected).default_scope(),
+        )
+    tracker = tracker_for(profile)
     if arguments.action == "profile":
-        return {"profile": profile.name, "tracker": profile.tracker, "scope": tracker.default_scope()}
+        return {
+            "profile": profile.name,
+            "tracker": profile.tracker,
+            "scope": tracker.default_scope(),
+            "creation": profile.creation.value,
+        }
     if arguments.action == "mine":
         return [item.to_json() for item in tracker.list_mine()]
     if arguments.action == "create":
         return _create(tracker, trackers, arguments)
     default = tracker.default_scope()
-    ref = parse_ref(
+    ref = ref or parse_ref(
         arguments.ref,
         None if default is None else (tracker.provider, default),
         [kind.parse_url for kind in trackers.values()],
     )
+    if arguments.action == "reference":
+        return ref.to_json()
     target = _tracker_for(ref, tracker, profile.name)
     actions: dict[str, Callable[[], Any]] = {
         "resolve": lambda: target.resolve(ref).to_json(body=arguments.body),
