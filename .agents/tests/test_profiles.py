@@ -8,7 +8,10 @@ from tj_work_items.tracker import ConfigError, Repository
 
 EMPLOYER = Profile(
     tracker="azure-devops",
+    settings={"organization": "example-org", "project": "Orders"},
+    match={"remote_host": "github.com", "remote": "^Example-Org/"},
 )
+REPOSITORY = Repository("github.com", "Example-Org/orders-service")
 
 
 def test_existing_profile_without_creation_defaults_to_deny() -> None:
@@ -36,6 +39,7 @@ def test_malformed_profile_is_rejected(value: object) -> None:
 
 
 @pytest.mark.parametrize("installed", [True, False])
+def test_employer_origin_never_selects_github(installed: bool) -> None:
     with pytest.raises(ConfigError, match=r"existing reference|profile matches"):
         select(REPOSITORY, available=lambda: [EMPLOYER] if installed else [], for_creation=True)
 

@@ -33,10 +33,11 @@ WORK = Profile(
             "azure-devops:dev.azure.com/contoso:9",
         ),
         (
-            "https://contoso.visualstudio.com/_workitems/edit/27737",
-            "azure-devops:dev.azure.com/contoso:27737",
+            "https://contoso.visualstudio.com/_workitems/edit/4321",
+            "azure-devops:dev.azure.com/contoso:4321",
         ),
         ("https://dev.azure.com/contoso/_workitems/edit/5", "azure-devops:dev.azure.com/contoso:5"),
+        ("AB#4321", "github:github.com/tj-agents/core:4321"),
         ("jira:acme.atlassian.net:ABC-12", "jira:acme.atlassian.net:ABC-12"),
     ],
 )

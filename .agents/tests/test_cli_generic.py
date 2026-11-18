@@ -16,6 +16,8 @@ from tj_work_items.tracker import Item, PullRequest
 
 WORK = profiles.Profile(
     tracker="azure-devops",
+    settings={"organization": "example-org", "project": "Orders"},
+    match={"remote_host": "github.com", "remote": "^Example-Org/"},
 )
 
 
@@ -34,6 +36,7 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "remote",
             "add",
             "origin",
+            "git@github.com:Example-Org/orders-service.git",
         ],
         check=True,
         capture_output=True,
@@ -114,8 +117,12 @@ def test_explicit_allow_cannot_supply_missing_project_creation_authority(
             ItemRef("github", "github.com/tj-agents/agent", "231"),
         ),
         (
+            "https://dev.azure.com/Example-Org/_workitems/edit/42",
+            ItemRef("azure-devops", "dev.azure.com/example-org", "42"),
         ),
         (
+            "https://example-org.visualstudio.com/Orders/_workitems/edit/42",
+            ItemRef("azure-devops", "dev.azure.com/example-org", "42"),
         ),
         ("jira:tracker.example:ABC-1", ItemRef("jira", "tracker.example", "ABC-1")),
         ("jira:https://tracker.example:APP-12", ItemRef("jira", "https://tracker.example", "APP-12")),
@@ -144,6 +151,7 @@ def test_bare_reference_uses_employer_scope(
     assert cli.main(["--cwd", str(repository), "reference", raw]) == 0
     assert (
         json.loads(capsys.readouterr().out)
+        == ItemRef("azure-devops", "dev.azure.com/example-org", "42").to_json()
     )
 
 
@@ -164,6 +172,7 @@ def test_profile_exposes_default_deny(
     assert cli.main(["--cwd", str(repository), "profile"]) == 0
     assert json.loads(capsys.readouterr().out) == {
         "tracker": "azure-devops",
+        "scope": "dev.azure.com/example-org",
         "creation": "deny",
     }
 
@@ -175,9 +184,11 @@ def test_explicit_azure_reference_uses_its_installed_profile_outside_a_project(
 ) -> None:
     monkeypatch.setattr(profiles, "installed_profiles", lambda: [WORK])
     item = Item(
+        ItemRef("azure-devops", "dev.azure.com/example-org", "42"), "Existing", "", "New", State.TO_DO, None
     )
     monkeypatch.setattr(AzureDevOpsTracker, "resolve", lambda self, ref: item if ref == item.ref else None)
     assert (
+        cli.main(["--cwd", str(tmp_path), "resolve", "https://dev.azure.com/example-org/_workitems/edit/42"])
         == 0
     )
     assert json.loads(capsys.readouterr().out)["ref"] == str(item.ref)
