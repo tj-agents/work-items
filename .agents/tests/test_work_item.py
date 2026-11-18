@@ -20,6 +20,14 @@ def example(kind="bug"):
 
 
 class WorkItemTests(unittest.TestCase):
+    def test_six_persisted_kinds_include_story_and_keep_debt_key(self):
+        self.assertEqual(("feature", "task", "bug", "story", "debt", "mistake"), module.KINDS)
+        story = example("story")
+        self.assertIn("## User story", module.render(story))
+        self.assertIn("## Acceptance", module.render(story))
+        with self.assertRaises(module.ItemError):
+            module.validate({key: value for key, value in story.items() if key != "acceptance"})
+
     def test_every_kind_requires_real_facts_and_renders_its_sections(self):
         for kind in module.KINDS:
             with self.subTest(kind=kind):

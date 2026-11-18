@@ -9,7 +9,7 @@ if sys.version_info < (3, 9):
 
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
-KINDS = ("feature", "task", "bug", "mistake", "debt")
+KINDS = ("feature", "task", "bug", "story", "debt", "mistake")
 
 
 class ItemError(ValueError):

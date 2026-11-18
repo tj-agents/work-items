@@ -1,6 +1,6 @@
 ---
 name: manage
-description: Generate, validate and preview deterministic feature, task, bug, mistake and technical-debt records for an explicitly selected GitHub tracker.
+description: Generate, validate and preview deterministic feature, task, bug, story, mistake and technical-debt records for an explicitly selected GitHub tracker.
 kind: utility
 domain: work-items
 profile: core
@@ -22,7 +22,8 @@ python -B <skill-directory>/scripts/work_item.py preview --input facts.json
 ```
 
 `--input -` reads stdin. Output is compact JSON; preview returns `title` and `body`.
-The five schemas under `templates/` generate both the input skeleton and Markdown sections.
+The six schemas under `templates/` generate both the input skeleton and Markdown sections.
+Stories require a substantive user story and acceptance conditions. Tech Debt uses the `debt` kind.
 Supply substantive facts and acceptance/verification conditions; scripts own boilerplate.
 An empty skeleton deliberately fails validation. Unknown causes must be stated as unknown.
 Do not invent priorities, causes, repro steps or passed verification. Keep source links and
@@ -52,8 +53,14 @@ Adoption writes `.work-items.json` and Core's `.problem-records.json` provider d
 refusing another existing provider before either write. It verifies origin and source issue availability, and records
 available native issue types. Commit that selection to sync it across computers. Where native types
 are unavailable, the deterministic body kind remains explicit; no organization types are modified.
-Feature uses native Feature when available; bug uses Bug, and task/mistake/debt use Task with their
-more specific body kind. All live issue data remains in GitHub, separate from local input files.
+Each kind uses its selected native type when available: Feature, Task, Bug, Story, Mistake or Tech Debt.
+A new native issue binds the selected type ID in its managed metadata and verifies fresh issue readback.
+A missing or changed native type ID fails visibly, including during reconciliation, reads and updates.
+A rename with the same type ID preserves the binding. Where a kind has no native mapping, output identifies
+its explicit body kind without claiming a verified native type. New mistakes and debt cannot use a Task
+mapping. Existing selected configurations, issue identities and retry receipts remain supported; older
+managed issues stay unbound until an explicit migration. All live issue data remains in GitHub, separate
+from local input files.
 The script rejects missing selection, another origin, foreign issue identities and work backends.
 
 Persist one request ID before calling create or an append command and reuse it after uncertain

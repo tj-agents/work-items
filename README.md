@@ -1,12 +1,12 @@
 # Work items
 
 Optional deterministic work-item tooling for explicitly selected personal GitHub repositories.
-Each source repository stores its feature, task, bug, mistake and technical-debt issues in GitHub.
+Each source repository stores its feature, task, bug, story, mistake and technical-debt issues in GitHub.
 Core keeps shared engineering behavior; employer Azure DevOps policy stays with its owner.
 
 ## Use
 
-The `work-items:manage` utility ships five JSON schemas and scripts for skeletons, validation,
+The `work-items:manage` utility ships six JSON schemas and scripts for skeletons, validation,
 Markdown rendering and the GitHub lifecycle. Start with actual facts; an empty skeleton fails validation.
 
 ```text
@@ -23,7 +23,8 @@ sync selection across computers. Installing the package alone does not adopt a t
 
 [The canonical utility](.agents/work-items/utility/manage/SKILL.md) documents current reads,
 hash-checked updates, notes, links, verified close, explicit retry reconciliation and Core transport.
-Persist request IDs before writes. Keep local submission receipts after uncertain outcomes; on another
+New native issues retain and verify their native type IDs; unmapped kinds report body-only representation.
+Existing issue identities and retry receipts remain supported. Persist request IDs before writes. Keep local submission receipts after uncertain outcomes; on another
 computer or after receipt loss use `--reconcile-only`. Concurrent writers still require coordination.
 GitHub holds canonical issue data; local receipts protect retries and are not another backlog.
 

@@ -14,6 +14,7 @@ REQUEST = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{7,127}")
 MARKER = re.compile(r"\n<!-- work-item:v1 (.+) -->\n?\Z")
 COMMENT = re.compile(r"\n<!-- work-item-comment:v1 (.+) -->\n?\Z")
 CONFIG = ".work-items.json"
+UNBOUND = object()
 
 
 class APIError(ItemError):
@@ -152,6 +153,16 @@ def issue_number(value, repository):
     return int(number)
 
 
+def native_type_binding(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {"id", "name"}:
+        raise ItemError("invalid managed native issue type")
+    if type(value["id"]) is not int or value["id"] <= 0 or not isinstance(value["name"], str) or not value["name"].strip():
+        raise ItemError("invalid managed native issue type")
+    return {"id": value["id"], "name": value["name"]}
+
+
 def metadata(body):
     if not isinstance(body, str):
         raise ItemError("managed issue body must be text")
@@ -160,23 +171,33 @@ def metadata(body):
         raise ItemError("issue is not managed by work-items")
     try:
         value = json.loads(match.group(1))
-        if not isinstance(value, dict) or set(value) not in ({"request_id", "kind", "creation_hash", "render_hash"}, {"request_id", "kind", "creation_hash", "render_hash", "kind_hash"}):
+        if not isinstance(value, dict) or set(value) not in (
+                {"request_id", "kind", "creation_hash", "render_hash"},
+                {"request_id", "kind", "creation_hash", "render_hash", "kind_hash"},
+                {"request_id", "kind", "creation_hash", "render_hash", "native_type"},
+                {"request_id", "kind", "creation_hash", "render_hash", "kind_hash", "native_type"}):
             raise ValueError("metadata shape")
         if value["kind"] not in KINDS or not isinstance(value["request_id"], str):
             raise ValueError("metadata kind/request")
         request_id(value["request_id"])
         if any(not isinstance(value[k], str) or not re.fullmatch(r"[a-f0-9]{64}", value[k]) for k in ("creation_hash", "render_hash", *(["kind_hash"] if "kind_hash" in value else []))):
             raise ValueError("metadata digest")
+        if "native_type" in value:
+            native_type_binding(value["native_type"])
         return value, body[:match.start()]
     except (ValueError, TypeError) as error:
         raise ItemError("invalid managed issue metadata") from error
 
 
-def body_for(item, request, existing=None):
+def body_for(item, request, existing=None, native_type=UNBOUND):
     text = render(item).rstrip("\n")
     info = {"request_id": request, "kind": item["kind"],
             "creation_hash": existing["creation_hash"] if existing else digest(json_text(item)), "render_hash": digest(text),
             "kind_hash": digest(item["kind"] + "\n" + text)}
+    if existing and "native_type" in existing:
+        info["native_type"] = existing["native_type"]
+    elif native_type is not UNBOUND:
+        info["native_type"] = native_type
     body = text + "\n<!-- work-item:v1 " + json_text(info) + " -->\n"
     if len(body) > 65536:
         raise ItemError("rendered issue body exceeds 65536 characters")
@@ -191,6 +212,33 @@ class Tracker:
         self.journal = journal
         self.endpoint = "repos/" + self.repo + "/issues"
 
+    def native_binding(self, item):
+        selected = self.config["issue_types"].get(item["kind"])
+        if not selected:
+            return None
+        if item["kind"] in ("debt", "mistake") and selected.casefold() == "task":
+            raise ItemError(f"new {item['kind']} issues must not use the Task native issue type")
+        available = self.api.request("GET", "repos/" + self.repo + "/issue-types")
+        matches = [entry for entry in available if isinstance(entry, dict) and entry.get("name") == selected]
+        if len(matches) != 1:
+            raise ItemError("configured issue type is unavailable or ambiguous; reconcile repository selection")
+        try:
+            return native_type_binding({"id": matches[0]["id"], "name": matches[0]["name"]})
+        except (KeyError, ItemError) as error:
+            raise ItemError("configured issue type is invalid; reconcile repository selection") from error
+
+    def verify_binding(self, issue):
+        info, _ = metadata(issue.get("body"))
+        binding = info.get("native_type", UNBOUND)
+        if binding is UNBOUND or binding is None:
+            return info
+        number = issue.get("number")
+        identity = f"{self.repo}#{number}" if type(number) is int and number > 0 else self.repo + " issue"
+        actual = issue.get("type")
+        if not isinstance(actual, dict) or type(actual.get("id")) is not int or actual["id"] != binding["id"]:
+            raise ItemError(f"{identity} native issue type does not match its managed binding")
+        return info
+
     def all(self):
         return [issue for issue in self.api.request("GET", self.endpoint + "?state=all&per_page=100", paginate=True)
                 if "pull_request" not in issue]
@@ -199,7 +247,7 @@ class Tracker:
         issue = self.api.request("GET", self.endpoint + f"/{number}")
         if not isinstance(issue, dict) or issue.get("number") != number or "pull_request" in issue:
             raise ItemError("target is not the expected issue")
-        metadata(issue.get("body"))
+        self.verify_binding(issue)
         return issue
 
     def compact(self, issue):
@@ -207,9 +255,15 @@ class Tracker:
             raise ItemError("invalid issue response identity")
         if issue.get("html_url") != f"https://github.com/{self.repo}/issues/{issue['number']}" or issue.get("state") not in ("open", "closed") or not isinstance(issue.get("title"), str):
             raise ItemError("invalid issue response fields")
-        info, _ = metadata(issue.get("body"))
+        info = self.verify_binding(issue)
         return {"identity": f"{self.repo}#{issue['number']}", "url": issue["html_url"], "state": issue["state"],
                 "title": issue["title"], "kind": info["kind"], "body_hash": digest(issue["body"])}
+
+    def reconcile_issue(self, issue, key, fingerprint):
+        current = self.get(issue["number"])
+        if self.journal:
+            self.journal.complete(key, fingerprint, current["number"])
+        return {**self.compact(current), "reconciled": True}
 
     def find_request(self, request, item):
         found = []
@@ -228,7 +282,6 @@ class Tracker:
 
     def create(self, item, request, reconcile_only=False):
         request_id(request)
-        body = body_for(item, request)
         key = self.repo + ":create:" + request
         fingerprint = digest(json_text(item))
         receipt = self.journal.read(key, fingerprint) if self.journal else None
@@ -239,31 +292,28 @@ class Tracker:
             if info["request_id"] != request or info["creation_hash"] != fingerprint:
                 raise ItemError("returned issue no longer matches its request receipt")
         if existing:
-            if self.journal:
-                self.journal.complete(key, fingerprint, existing["number"])
-            return {**self.compact(existing), "reconciled": True}
+            return self.reconcile_issue(existing, key, fingerprint)
         if receipt or reconcile_only:
             raise ItemError("request outcome remains uncertain; reconcile without another POST")
+        binding = self.native_binding(item)
+        body = body_for(item, request, native_type=binding)
         payload = {"title": item["title"], "body": body}
-        issue_type = self.config["issue_types"].get(item["kind"])
-        if issue_type:
-            available = self.api.request("GET", "repos/" + self.repo + "/issue-types")
-            if issue_type not in [entry["name"] for entry in available]:
-                raise ItemError("configured issue type is unavailable; reconcile repository selection")
-            payload["type"] = issue_type
+        if binding:
+            payload["type"] = binding["name"]
         if self.journal:
             self.journal.reserve(key, fingerprint)
         try:
-            issue = self.api.request("POST", self.endpoint, payload)
-            result = self.compact(issue)
+            returned = self.api.request("POST", self.endpoint, payload)
+            number = returned.get("number") if isinstance(returned, dict) else None
+            if type(number) is not int or number <= 0:
+                raise ItemError("GitHub create response lacks an issue identity")
             if self.journal:
-                self.journal.complete(key, fingerprint, issue["number"])
-        except (APIError, ItemError, KeyError, TypeError):
+                self.journal.complete(key, fingerprint, number)
+            result = self.compact(self.get(number))
+        except APIError:
             existing = self.find_request(request, item)
             if existing:
-                if self.journal:
-                    self.journal.complete(key, fingerprint, existing["number"])
-                return {**self.compact(existing), "reconciled": True}
+                return self.reconcile_issue(existing, key, fingerprint)
             raise ItemError("create outcome uncertain or rejected; retain request-id and reconcile before retrying")
         return {**result, "reconciled": False}
 
@@ -374,8 +424,11 @@ def adopt_locked(root, repository, api):
         if error.status != 404:
             raise
         types = []
-    available = {entry["name"] for entry in types}
-    mapping = {kind: name for kind, name in {"feature": "Feature", "task": "Task", "bug": "Bug", "mistake": "Task", "debt": "Task"}.items() if name in available}
+    available = {entry.get("name") for entry in types if isinstance(entry, dict) and isinstance(entry.get("name"), str)}
+    mapping = {kind: name for kind, name in {
+        "feature": "Feature", "task": "Task", "bug": "Bug", "story": "Story",
+        "debt": "Tech Debt", "mistake": "Mistake"
+    }.items() if name in available}
     config = {"schema_version": 1, "backend": "github", "repository": repo["full_name"], "issue_types": mapping}
     path = Path(root).resolve() / CONFIG
     if path.exists():
@@ -442,6 +495,8 @@ def execute(args):
             try:
                 item = tracker.compact(issue)
             except ItemError:
+                if MARKER.search(issue.get("body") if isinstance(issue, dict) and isinstance(issue.get("body"), str) else ""):
+                    raise
                 continue
             if (not args.kind or item["kind"] == args.kind) and (args.state == "all" or item["state"] == args.state):
                 result.append(item)

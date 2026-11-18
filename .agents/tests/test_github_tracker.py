@@ -30,6 +30,11 @@ class FakeAPI:
         self.issues = []
         self.comments = []
         self.calls = []
+        self.issue_types = [
+            {"id": 1, "name": "Task"}, {"id": 2, "name": "Feature"},
+            {"id": 3, "name": "Bug"}, {"id": 4, "name": "Story"},
+            {"id": 5, "name": "Tech Debt"}, {"id": 6, "name": "Mistake"}
+        ]
         self.fail_after_create = False
         self.fail_before_create = False
         self.fail_after_comment = False
@@ -40,7 +45,7 @@ class FakeAPI:
         if method == "GET" and endpoint == base + "?state=all&per_page=100":
             return copy.deepcopy(self.issues)
         if method == "GET" and endpoint == "repos/owner/project/issue-types":
-            return [{"name": name} for name in ("Task", "Feature", "Bug")]
+            return copy.deepcopy(self.issue_types)
         if endpoint == "repos/owner/project/issues/comments/1":
             return copy.deepcopy(self.comments[0])
         if endpoint.startswith(base + "/1/comments"):
@@ -54,15 +59,19 @@ class FakeAPI:
         if method == "POST" and endpoint == base:
             if self.fail_before_create:
                 raise github.APIError("rejected", 403)
-            value = {"number": len(self.issues) + 1, "state": "open", "html_url": f"https://github.com/owner/project/issues/{len(self.issues) + 1}", **payload}
+            selected = next((entry for entry in self.issue_types if entry["name"] == payload.get("type")), None)
+            value = {"number": len(self.issues) + 1, "state": "open", "html_url": f"https://github.com/owner/project/issues/{len(self.issues) + 1}",
+                     "title": payload["title"], "body": payload["body"], "type": copy.deepcopy(selected)}
             self.issues.append(value)
             if self.fail_after_create:
                 raise github.APIError("lost response")
             return copy.deepcopy(value)
-        if endpoint == base + "/1":
+        if endpoint.startswith(base + "/") and endpoint[len(base) + 1:].isdigit():
+            number = int(endpoint[len(base) + 1:])
+            target = self.issues[number - 1]
             if method == "PATCH":
-                self.issues[0].update(payload)
-            return copy.deepcopy(self.issues[0])
+                target.update(payload)
+            return copy.deepcopy(target)
         raise AssertionError((method, endpoint, payload))
 
 
@@ -101,11 +110,68 @@ class TrackerTests(unittest.TestCase):
     def test_native_type_mapping_is_verified_before_submission(self):
         tracker = github.Tracker({**CONFIG, "issue_types": {"feature": "Feature"}}, self.api)
         tracker.create(item("feature"), "request-0001")
-        self.assertEqual("Feature", self.api.issues[0]["type"])
+        info, _ = github.metadata(self.api.issues[0]["body"])
+        self.assertEqual({"id": 2, "name": "Feature"}, info["native_type"])
+        self.assertEqual("Feature", self.api.issues[0]["type"]["name"])
+        self.assertTrue(any(method == "GET" and endpoint.endswith("/issues/1") for method, endpoint, _ in self.api.calls))
         tracker = github.Tracker({**CONFIG, "issue_types": {"bug": "Missing"}}, self.api)
         with self.assertRaisesRegex(records.ItemError, "unavailable"):
             tracker.create(item(), "request-0002")
         self.assertEqual(1, len(self.api.issues))
+
+    def test_native_binding_uses_id_and_refuses_missing_or_wrong_assignments(self):
+        tracker = github.Tracker({**CONFIG, "issue_types": {"feature": "Feature"}}, self.api)
+        tracker.create(item("feature"), "request-0001")
+        self.api.issues[0]["type"] = {"id": 99, "name": "Feature"}
+        with self.assertRaisesRegex(records.ItemError, "owner/project#1 native issue type"):
+            tracker.get(1)
+        self.api.issues[0]["type"] = None
+        with self.assertRaisesRegex(records.ItemError, "owner/project#1 native issue type"):
+            tracker.update(1, item("feature"), github.digest(self.api.issues[0]["body"]))
+
+    def test_native_binding_allows_a_rename_with_the_same_id(self):
+        tracker = github.Tracker({**CONFIG, "issue_types": {"feature": "Feature"}}, self.api)
+        tracker.create(item("feature"), "request-0001")
+        self.api.issues[0]["type"] = {"id": 2, "name": "Product feature"}
+        issue = tracker.get(1)
+        self.assertEqual("feature", tracker.compact(issue)["kind"])
+
+    def test_sparse_mapping_creates_a_body_only_issue_with_an_explicit_unbound_marker(self):
+        self.tracker.create(item("story"), "request-0001")
+        info, _ = github.metadata(self.api.issues[0]["body"])
+        self.assertIsNone(info["native_type"])
+        self.assertFalse(any(endpoint.endswith("/issue-types") for _, endpoint, _ in self.api.calls))
+
+    def test_legacy_unbound_markers_remain_usable_without_a_native_assignment(self):
+        self.tracker.create(item("debt"), "request-0001")
+        info, text = github.metadata(self.api.issues[0]["body"])
+        info.pop("native_type")
+        self.api.issues[0]["body"] = text + "\n<!-- work-item:v1 " + github.json_text(info) + " -->\n"
+        self.api.issues[0]["type"] = {"id": 1, "name": "Task"}
+        mapped = github.Tracker({**CONFIG, "issue_types": {"debt": "Task"}}, self.api)
+        result = mapped.create(item("debt"), "request-0001")
+        self.assertTrue(result["reconciled"])
+        updated = mapped.update(1, {**item("debt"), "title": "Updated debt"}, result["body_hash"])
+        preserved, _ = github.metadata(self.api.issues[0]["body"])
+        self.assertNotIn("native_type", preserved)
+        self.assertEqual("debt", updated["kind"])
+
+    def test_new_debt_and_mistake_cannot_use_task_native_type(self):
+        for kind in ("debt", "mistake"):
+            with self.subTest(kind=kind):
+                tracker = github.Tracker({**CONFIG, "issue_types": {kind: "Task"}}, self.api)
+                with self.assertRaisesRegex(records.ItemError, "must not use the Task"):
+                    tracker.create(item(kind), "request-" + kind)
+        self.assertFalse(any(method == "POST" for method, _, _ in self.api.calls))
+
+    def test_list_surfaces_managed_native_binding_drift(self):
+        tracker = github.Tracker({**CONFIG, "issue_types": {"feature": "Feature"}}, self.api)
+        tracker.create(item("feature"), "request-0001")
+        self.api.issues[0]["type"] = None
+        args = argparse.Namespace(command="list", root=".", kind=None, state="open")
+        with patch.object(github, "GitHub", return_value=self.api), patch.object(github, "selection", return_value={**CONFIG, "issue_types": {"feature": "Feature"}}), patch("request_journal.RequestJournal", return_value=None):
+            with self.assertRaisesRegex(records.ItemError, "native issue type"):
+                github.execute(args)
 
     def test_update_refuses_stale_hash_and_manual_body_edits(self):
         created = self.tracker.create(item(), "request-0001")
@@ -218,6 +284,23 @@ class JournalTests(unittest.TestCase):
             self.tracker.create(item(), "cross-machine-request", reconcile_only=True)
         self.assertEqual(1, len(self.api.issues))
 
+    def test_returned_identity_is_retained_before_native_readback_failure(self):
+        tracker = github.Tracker({**CONFIG, "issue_types": {"feature": "Feature"}}, self.api, self.journal)
+        original = self.api.request
+
+        def request(method, endpoint, payload=None, paginate=False):
+            response = original(method, endpoint, payload, paginate)
+            if method == "POST" and endpoint == "repos/owner/project/issues":
+                self.api.issues[0]["type"] = None
+            return response
+
+        self.api.request = request
+        with self.assertRaisesRegex(records.ItemError, "native issue type"):
+            tracker.create(item("feature"), "request-0001")
+        with self.assertRaisesRegex(records.ItemError, "native issue type"):
+            tracker.create(item("feature"), "request-0001")
+        self.assertEqual(1, sum(method == "POST" for method, _, _ in self.api.calls))
+
     def test_comment_receipts_reconcile_by_identity_when_list_is_stale(self):
         self.tracker.create(item(), "request-0001")
         first = self.tracker.comment(1, "Verified", "comment-0001")
@@ -260,7 +343,7 @@ class SelectionTests(unittest.TestCase):
         api = FakeAPI()
         api.request = unittest.mock.Mock(side_effect=[
             {"full_name": "owner/project", "has_issues": True, "archived": False},
-            [{"name": name} for name in ("Feature", "Task", "Bug")]])
+            [{"name": name} for name in ("Feature", "Task", "Bug", "Story", "Tech Debt", "Mistake")]])
         with tempfile.TemporaryDirectory() as directory, patch.object(github, "source_repository", return_value="owner/project"):
             subprocess.run(["git", "init", "-q", directory], check=True)
             result = github.adopt(directory, "owner/project", api)
@@ -268,6 +351,9 @@ class SelectionTests(unittest.TestCase):
             config = github.selection(directory)
             self.assertEqual("Feature", config["issue_types"]["feature"])
             self.assertEqual("Bug", config["issue_types"]["bug"])
+            self.assertEqual("Story", config["issue_types"]["story"])
+            self.assertEqual("Tech Debt", config["issue_types"]["debt"])
+            self.assertEqual("Mistake", config["issue_types"]["mistake"])
             self.assertTrue(all(call.args[0] == "GET" for call in api.request.call_args_list))
             with self.assertRaisesRegex(records.ItemError, "must match"):
                 github.adopt(directory, "other/project", api)
