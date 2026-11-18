@@ -1,7 +1,7 @@
 ---
 name: write-debt
 description: Record an intentional shortcut, deferral or known unfixed risk with its owning area, rationale and objective exit condition in the selected provider.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider

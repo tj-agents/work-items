@@ -1,7 +1,7 @@
 ---
 name: manage
 description: Supply deterministic work-item schemas and neutral provider primitives. Use for explicit GitHub lifecycle operations or when a provider needs the shared record, receipt and Azure transport runtime.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: provider packages and repositories explicitly adopting GitHub work items
@@ -28,7 +28,7 @@ It requires no tracker credentials and never adopts or chooses a provider. Missi
 primary declarations fail even if a feature checkout contains a valid declaration.
 
 `--input -` reads stdin. Output is compact JSON; preview returns `title` and `body`.
-The five schemas under `runtime/src/tj_work_items/templates/` generate both the input skeleton and Markdown sections.
+The five schemas under `packages/tj-work-items/src/tj_work_items/templates/` generate both the input skeleton and Markdown sections.
 Supply substantive facts and acceptance/verification conditions; scripts own boilerplate.
 An empty skeleton deliberately fails validation. Unknown causes must be stated as unknown.
 Do not invent priorities, causes, repro steps or passed verification. Keep source links and
@@ -82,7 +82,7 @@ An already-closed response reports existing state and does not claim new verific
 curated knowledge remain in the source repository. Offline writes fail visibly; do useful local
 work and retain unsent input without claiming remote synchronization.
 Installing the package alone does not select a tracker or change employer policy. Provider packages
-use `runtime/src/tj_work_items/` for neutral records, receipts and Azure transport; its use does not
+use `packages/tj-work-items/src/tj_work_items/` for neutral records, receipts and Azure transport; its use does not
 select GitHub or authorize its lifecycle. The GitHub commands above require their explicit selection
 and adoption. Existing
 Core repair workflows retain ownership of diagnosis and delivery. Keep work repository evidence

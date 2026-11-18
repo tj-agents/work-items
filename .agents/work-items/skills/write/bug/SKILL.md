@@ -1,7 +1,7 @@
 ---
 name: write-bug
 description: Record a software defect once through the selected provider, with observed evidence, impact, repair ownership and verifiable resolution.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider

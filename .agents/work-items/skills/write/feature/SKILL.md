@@ -1,7 +1,7 @@
 ---
 name: write-feature
 description: Record new or changed product behavior with scope, requirements, dependencies and observable acceptance in the selected provider.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider

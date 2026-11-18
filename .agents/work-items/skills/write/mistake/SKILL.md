@@ -1,7 +1,7 @@
 ---
 name: write-mistake
 description: Record an observed agent or process error with its cause, governing rule, correction and an observable prevention condition.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider

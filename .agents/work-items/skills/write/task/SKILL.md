@@ -1,7 +1,7 @@
 ---
 name: write-task
 description: Record concrete work with scope, dependencies and a verifiable completion condition in the selected provider without starting implementation.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider

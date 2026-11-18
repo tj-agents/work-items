@@ -1,7 +1,7 @@
 ---
 name: write-issue
 description: Classify an untyped recording request and delegate once to its bug, mistake, debt, feature or task writer. Recording does not authorize implementation.
-kind: utility
+kind: operation
 domain: work-items
 profile: core
 applicability: repositories recording work through an explicitly selected provider
