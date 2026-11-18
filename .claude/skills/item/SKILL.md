@@ -1,6 +1,6 @@
 ---
 name: item
-description: Read, create, list, move, comment on, link or list the pull requests of a work item in the repository's tracker (GitHub Issues and Projects, Azure DevOps, or any installed adapter) with `tj item`. Use to show an issue or work item, create one, list items assigned to me, move a card to To Do, In Progress, Blocked, In Review or Done, comment on an item, or link a pull request to it.
+description: Use when reading, creating, listing, moving or commenting on tracker items, or linking a PR to or listing an item's PRs through its tj item profile.
 kind: utility
 domain: work-items
 profile: core
