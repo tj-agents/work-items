@@ -9,5 +9,8 @@
   "skills": "./skills/",
   "keywords": [
     "work-items"
+  ],
+  "dependencies": [
+    "base@tj-agents"
   ]
 }

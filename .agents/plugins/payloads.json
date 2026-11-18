@@ -3,5 +3,10 @@
     "work-items": [
       "work-items"
     ]
+  },
+  "dependencies": {
+    "work-items": [
+      "tj-agents/base"
+    ]
   }
 }
