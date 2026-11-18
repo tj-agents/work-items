@@ -15,10 +15,10 @@ from tj_work_items.states import State
 from tj_work_items.tracker import Item, PullRequest
 
 WORK = profiles.Profile(
-    name="infonetica",
+    name="company",
     tracker="azure-devops",
-    settings={"organization": "infonetica", "project": "CRIS"},
-    match={"remote_host": "github.com", "remote": "^Infonetica/"},
+    settings={"organization": "example-org", "project": "Orders"},
+    match={"remote_host": "github.com", "remote": "^Example-Org/"},
 )
 
 
@@ -37,7 +37,7 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "remote",
             "add",
             "origin",
-            "git@github.com:Infonetica/cris-preaward-app.git",
+            "git@github.com:Example-Org/orders-service.git",
         ],
         check=True,
         capture_output=True,
@@ -61,7 +61,7 @@ def test_employer_create_never_loads_an_adapter_or_calls_gh(
     error = json.loads(capsys.readouterr().err)["error"]
     assert "existing reference" in error
     if installed:
-        assert "infonetica:create-work-item" in error
+        assert "company:create-work-item" in error
 
 
 def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
@@ -73,7 +73,7 @@ def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
     monkeypatch.setattr(profiles, "installed_profiles", lambda: [WORK, allow])
     monkeypatch.setattr(adapters, "available", forbidden)
     assert cli.main(["--cwd", str(repository), "--profile", "custom", "create", "--title", "x"]) == 2
-    assert "infonetica:create-work-item" in capsys.readouterr().err
+    assert "company:create-work-item" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -120,12 +120,12 @@ def test_explicit_allow_cannot_supply_missing_project_creation_authority(
             ItemRef("github", "github.com/tj-agents/agent", "231"),
         ),
         (
-            "https://dev.azure.com/Infonetica/_workitems/edit/42",
-            ItemRef("azure-devops", "dev.azure.com/infonetica", "42"),
+            "https://dev.azure.com/Example-Org/_workitems/edit/42",
+            ItemRef("azure-devops", "dev.azure.com/example-org", "42"),
         ),
         (
-            "https://infonetica.visualstudio.com/CRIS/_workitems/edit/42",
-            ItemRef("azure-devops", "dev.azure.com/infonetica", "42"),
+            "https://example-org.visualstudio.com/Orders/_workitems/edit/42",
+            ItemRef("azure-devops", "dev.azure.com/example-org", "42"),
         ),
         ("jira:tracker.example:ABC-1", ItemRef("jira", "tracker.example", "ABC-1")),
         ("jira:https://tracker.example:APP-12", ItemRef("jira", "https://tracker.example", "APP-12")),
@@ -154,7 +154,7 @@ def test_bare_reference_uses_employer_scope(
     assert cli.main(["--cwd", str(repository), "reference", raw]) == 0
     assert (
         json.loads(capsys.readouterr().out)
-        == ItemRef("azure-devops", "dev.azure.com/infonetica", "42").to_json()
+        == ItemRef("azure-devops", "dev.azure.com/example-org", "42").to_json()
     )
 
 
@@ -174,9 +174,9 @@ def test_profile_exposes_default_deny(
 ) -> None:
     assert cli.main(["--cwd", str(repository), "profile"]) == 0
     assert json.loads(capsys.readouterr().out) == {
-        "profile": "infonetica",
+        "profile": "company",
         "tracker": "azure-devops",
-        "scope": "dev.azure.com/infonetica",
+        "scope": "dev.azure.com/example-org",
         "creation": "deny",
     }
 
@@ -188,11 +188,11 @@ def test_explicit_azure_reference_uses_its_installed_profile_outside_a_project(
 ) -> None:
     monkeypatch.setattr(profiles, "installed_profiles", lambda: [WORK])
     item = Item(
-        ItemRef("azure-devops", "dev.azure.com/infonetica", "42"), "Existing", "", "New", State.TO_DO, None
+        ItemRef("azure-devops", "dev.azure.com/example-org", "42"), "Existing", "", "New", State.TO_DO, None
     )
     monkeypatch.setattr(AzureDevOpsTracker, "resolve", lambda self, ref: item if ref == item.ref else None)
     assert (
-        cli.main(["--cwd", str(tmp_path), "resolve", "https://dev.azure.com/infonetica/_workitems/edit/42"])
+        cli.main(["--cwd", str(tmp_path), "resolve", "https://dev.azure.com/example-org/_workitems/edit/42"])
         == 0
     )
     assert json.loads(capsys.readouterr().out)["ref"] == str(item.ref)
@@ -422,7 +422,7 @@ def test_explicit_refs_in_work_adoption_need_no_profile_but_bare_refs_and_create
 ) -> None:
     (repository / ".agents").mkdir()
     (repository / ".agents/plugins.json").write_text(
-        '{"plugins":["work@tj-agents","infonetica@tj-agents"]}', encoding="utf-8"
+        '{"plugins":["work@tj-agents","company@tj-agents"]}', encoding="utf-8"
     )
     monkeypatch.setattr(profiles, "installed_profiles", list)
     expected = ItemRef("github", "github.com/tj-agents/agent", "231")
