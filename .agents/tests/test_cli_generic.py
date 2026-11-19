@@ -15,6 +15,7 @@ from tj_work_items.states import State
 from tj_work_items.tracker import Item, PullRequest
 
 WORK = profiles.Profile(
+    name="company",
     tracker="azure-devops",
     settings={"organization": "example-org", "project": "Orders"},
     match={"remote_host": "github.com", "remote": "^Example-Org/"},
@@ -60,6 +61,7 @@ def test_employer_create_never_loads_an_adapter_or_calls_gh(
     error = json.loads(capsys.readouterr().err)["error"]
     assert "existing reference" in error
     if installed:
+        assert "company:create-work-item" in error
 
 
 def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
@@ -71,6 +73,7 @@ def test_explicit_allow_cannot_bypass_project_policy_before_adapter_loading(
     monkeypatch.setattr(profiles, "installed_profiles", lambda: [WORK, allow])
     monkeypatch.setattr(adapters, "available", forbidden)
     assert cli.main(["--cwd", str(repository), "--profile", "custom", "create", "--title", "x"]) == 2
+    assert "company:create-work-item" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize(
@@ -171,6 +174,7 @@ def test_profile_exposes_default_deny(
 ) -> None:
     assert cli.main(["--cwd", str(repository), "profile"]) == 0
     assert json.loads(capsys.readouterr().out) == {
+        "profile": "company",
         "tracker": "azure-devops",
         "scope": "dev.azure.com/example-org",
         "creation": "deny",
