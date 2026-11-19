@@ -7,6 +7,7 @@ from tj_work_items.profiles import CreationPolicy, Profile, profile_from, select
 from tj_work_items.tracker import ConfigError, Repository
 
 EMPLOYER = Profile(
+    name="company",
     tracker="azure-devops",
     settings={"organization": "example-org", "project": "Orders"},
     match={"remote_host": "github.com", "remote": "^Example-Org/"},
@@ -15,6 +16,7 @@ REPOSITORY = Repository("github.com", "Example-Org/orders-service")
 
 
 def test_existing_profile_without_creation_defaults_to_deny() -> None:
+    loaded = profile_from({"tracker": "azure-devops", "settings": EMPLOYER.settings}, "company")
     assert loaded.creation is CreationPolicy.DENY
 
 
@@ -45,6 +47,7 @@ def test_employer_origin_never_selects_github(installed: bool) -> None:
 
 
 def test_personal_override_cannot_bypass_matched_creation_policy() -> None:
+    with pytest.raises(ConfigError, match="company:create-work-item"):
         select(
             REPOSITORY,
             "personal",
@@ -56,11 +59,13 @@ def test_personal_override_cannot_bypass_matched_creation_policy() -> None:
 
 def test_configured_allow_cannot_bypass_matched_creation_policy() -> None:
     permissive = Profile("custom", "custom", creation=CreationPolicy.ALLOW)
+    with pytest.raises(ConfigError, match="company:create-work-item"):
         select(REPOSITORY, configured="custom", available=lambda: [EMPLOYER, permissive], for_creation=True)
 
 
 def test_requested_allow_cannot_bypass_adopted_creation_policy() -> None:
     permissive = Profile("custom", "custom", creation=CreationPolicy.ALLOW)
+    with pytest.raises(ConfigError, match="company:create-work-item"):
         select(
             None,
             "custom",
@@ -88,6 +93,7 @@ def test_personal_requires_explicit_adoption() -> None:
 
 def test_profile_configuration_disambiguates_matching_profiles() -> None:
     other = replace(EMPLOYER, name="other")
+    assert select(REPOSITORY, configured="company", available=lambda: [EMPLOYER, other]) == EMPLOYER
 
 
 def test_duplicate_installed_profile_names_are_refused() -> None:
